@@ -1,0 +1,724 @@
+let classifier;
+let video;
+let label = "waiting...";
+
+function preload() {
+  classifier = ml5.imageClassifier(
+    "https://teachablemachine.withgoogle.com/models/55FUUPSEh/",
+    { flipped: true }
+  );
+}
+
+function gotResults(results) {
+  console.log(results);
+  label = results[0].label;
+}
+
+function setup() {
+  createCanvas(640, 480);
+  video = createCapture(VIDEO, { flipped: true });
+  video.hide();
+  classifier.classifyStart(video, gotResults);
+}
+
+function draw() {
+  background(220);
+  image(video, 0, 0, width, height);
+
+  rectMode(CENTER);
+  fill(0);
+  rect(width / 2, height - 50, width, 50);
+  textSize(32);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  noStroke();
+  text(label, width / 2, height - 50);
+
+  if (label == "mug") {
+    background(255, 0, 255, 100);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   THINGS I SHOULD HAVE SAID — sketch.js
+   ───────────────────────────────────────────────────────
+   SETUP CHECKLIST FOR YOU:
+   1. Train your Teachable Machine model at:
+      https://teachablemachine.withgoogle.com/train/image
+      Classes to train: "key", "phone", "mug", "photo", "other"
+      Export → upload to a folder called /model/
+      and set MODEL_URL below.
+   2. Add room background images to /images/ folder.
+      Name them: porch.jpg, living-room.jpg, kitchen.jpg,
+      bedroom.jpg, hobby-room.jpg
+   3. Run from a local server (e.g. VS Code Live Server)
+      because webcam requires http/https.
+═══════════════════════════════════════════════════════ */
+
+// ─────────────────────────────────────────────────────
+// CONFIGURATION — edit these to match your setup
+// ─────────────────────────────────────────────────────
+
+/*
+const MODEL_URL = './model/'; // path to your Teachable Machine model folder
+
+const ROOM_IMAGES = {
+  porch:      './images/porch.jpg',
+  livingRoom: './images/living-room.jpg',
+  kitchen:    './images/kitchen.jpg',
+  bedroom:    './images/bedroom.jpg',
+  hobbyRoom:  './images/hobby-room.jpg',
+};
+
+// How long the detection ring must stay "detected" before triggering (ms)
+const DETECTION_HOLD_MS = 1800;
+
+// Confidence threshold for Teachable Machine (0–1)
+const CONFIDENCE_THRESHOLD = 0.82;
+
+// How long palm must be held to advance dialogue (ms)
+const PALM_HOLD_MS = 1200;
+
+// ─────────────────────────────────────────────────────
+// GAME SCRIPT — room by room, beat by beat
+// Each entry is one screen of text.
+// type: "dialogue" | "object" | "diary" | "ending"
+// object: the Teachable Machine class name to detect
+// ─────────────────────────────────────────────────────
+
+const GAME_SCRIPT = [
+
+  // ── PORCH ──────────────────────────────────────────
+  {
+    room: 'porch',
+    label: 'The Porch',
+    beats: [
+      { type: 'dialogue', text: 'The house looked smaller than I remembered.' },
+      { type: 'dialogue', text: 'The wind chime was still there.\nStill off rhythm.\nStill trying.' },
+      { type: 'dialogue', text: 'They called on Tuesday.\n"Come quickly. Sort everything. The property needs to be sold."' },
+      { type: 'dialogue', text: 'I was nine when Mom died.\nDad and I didn\'t talk about it.\nWe just… moved around each other.\nTwo people in a house that used to hold three.' },
+      { type: 'dialogue', text: 'He got busier after.\nLonger hours. A new job.\nI thought he wanted to forget.\nI didn\'t know what he was carrying.\nI didn\'t ask.' },
+      { type: 'dialogue', text: 'By the time I was old enough to ask,\nI was already too angry.' },
+      { type: 'dialogue', text: 'The night I told him I\'d applied for studio art,\nhe looked at me like I\'d said something dangerous.\n\n"You\'re throwing your life away."' },
+      { type: 'dialogue', text: 'I had spent years waiting for him to show up.\nAnd when he finally did, it was to take something from me.' },
+      { type: 'dialogue', text: 'I told him he had no right.\nI left that night.\nI didn\'t look back.\n\nThat was ten years ago.' },
+      { type: 'dialogue', text: 'I reached into my bag.\nSearching for the one thing I brought that belonged here.' },
+      { type: 'object', text: 'I hadn\'t used it in years.', object: 'key', instruction: 'key' },
+      { type: 'dialogue', text: 'The door opened with a reluctant groan.' },
+    ]
+  },
+
+  // ── LIVING ROOM ────────────────────────────────────
+  {
+    room: 'livingRoom',
+    label: 'The Living Room',
+    beats: [
+      { type: 'dialogue', text: 'The air inside was still.\nNot stale.\nJust… paused.' },
+      { type: 'dialogue', text: 'The same couch. The same table.\nThe same silence that used to swallow everything.' },
+      { type: 'dialogue', text: 'After Mom died, the quiet got heavy.\nDad stopped filling it.\n\nI\'d come home from school and the house would just be waiting —\nno smell of dinner, no TV in the background.\nJust rooms.' },
+      { type: 'dialogue', text: 'I used to draw at the kitchen table to make it feel less empty.\nHe never said anything about the drawings.\nI thought that meant he didn\'t notice.' },
+      { type: 'dialogue', text: 'A sharp vibration broke through the stillness.' },
+      { type: 'object', text: 'Work notifications. The world outside, still running.', object: 'phone', instruction: 'your phone' },
+      { type: 'dialogue', text: 'I moved to dismiss them.\n\nAnd saw it.' },
+      { type: 'dialogue', text: 'Dad (3)\nDad — 1 voicemail\n\nThe last call: eight days ago.' },
+      { type: 'dialogue', text: 'I had told myself I\'d listen when I was ready.\n\nMy thumb hovered.' },
+      { type: 'dialogue', text: '"Hey. It\'s me."\nA pause.\n"I know you probably won\'t pick up."' },
+      { type: 'dialogue', text: 'Another pause. The sound of him exhaling.\n\n"I\'ve been thinking a lot lately.\nI just… wanted to hear your voice.\nEven if it\'s just your voicemail."' },
+      { type: 'dialogue', text: '"I\'m sorry it took me this long."\n\nThe message ended.' },
+      { type: 'dialogue', text: 'Eight days ago.\nOne week before he died.\n\nI held the button down until the screen went dark.' },
+    ]
+  },
+
+  // ── KITCHEN ────────────────────────────────────────
+  {
+    room: 'kitchen',
+    label: 'The Kitchen',
+    beats: [
+      { type: 'dialogue', text: 'The kitchen felt the same.\n\nThat surprised me.' },
+      { type: 'dialogue', text: 'I expected distance.\nSomeone else\'s space.\nBut it just felt like Saturday mornings.\nLike cereal before school.\nLike the particular creak of the third floorboard.' },
+      { type: 'dialogue', text: 'And then I saw it.' },
+      { type: 'dialogue', text: 'On the counter, next to the dish rack.\n\nA mug.\nSlightly uneven.\nThe glaze pooled wrong near the handle.\nA hairline crack along the side.' },
+      { type: 'dialogue', text: 'Third grade. Art class.\nWe fired them in the school kiln.\nI brought it home like it was precious.\n\n"Throw it away," I used to tell him. "It\'s ugly."\nHe always laughed.\n"It works, doesn\'t it?"' },
+      { type: 'object', text: 'I thought he kept it because he hadn\'t gotten around to throwing it out.', object: 'mug', instruction: 'the mug' },
+      { type: 'dialogue', text: 'It was clean.\nSitting out.\nStill being used.' },
+      { type: 'dialogue', text: 'Of all the things he could have replaced.\nOf all the things he could have quietly put in a box somewhere.\n\nHe kept this.\nOn the counter.\nEvery morning.' },
+      { type: 'dialogue', text: 'I stood there a long time.\n\nI was so sure he didn\'t care about the things I made.' },
+    ]
+  },
+
+  // ── BEDROOM ────────────────────────────────────────
+  {
+    room: 'bedroom',
+    label: 'His Bedroom',
+    beats: [
+      { type: 'dialogue', text: 'His room was the one I avoided longest.' },
+      { type: 'dialogue', text: 'The bed was made.\nNothing out of place.\nNothing abandoned.\nLike he had just stepped out.' },
+      { type: 'dialogue', text: 'On the bedside table —\na photo frame, facing the bed.' },
+      { type: 'dialogue', text: 'I crossed the room slowly.' },
+      { type: 'object', text: 'It was me.', object: 'photo', instruction: 'the photograph' },
+      { type: 'dialogue', text: 'Twelve, maybe. Laughing at something outside the frame.\nMy face open in a way I hadn\'t been in years.\n\nI didn\'t remember this being taken.' },
+      { type: 'dialogue', text: 'He kept this here.\nNext to where he slept.\nEvery night.\n\nEven after I left.\nEven after I stopped answering.' },
+      { type: 'dialogue', text: 'I had spent ten years believing he didn\'t think about me.\n\nThis didn\'t look like someone who forgot.' },
+    ]
+  },
+
+  // ── HOBBY ROOM — diary with hand gestures ──────────
+  {
+    room: 'hobbyRoom',
+    label: 'Mom\'s Room',
+    beats: [
+      { type: 'dialogue', text: 'I hadn\'t opened this door since Mom died.' },
+      { type: 'dialogue', text: 'We never talked about why.\nWe just both stopped going in.' },
+      { type: 'dialogue', text: 'I pushed it open.\n\nAnd stopped.' },
+      { type: 'dialogue', text: 'It was clean.\n\nNot frozen. Not abandoned.\nMaintained.\nLike someone had been coming in here.\nLike someone hadn\'t been able to let it go.' },
+      { type: 'dialogue', text: 'And on the walls —\n\nMy drawings.\n\nFramed.' },
+      { type: 'dialogue', text: 'Crayon horses. Marker houses.\nA portrait of Mom I made when I was seven,\nthe proportions all wrong.\n\nAnd ribbons.\nUIL. Regional. First place, seventh grade.\n\nI didn\'t know he came to that one.' },
+      { type: 'dialogue', text: 'In the corner: a desk.\nA notebook, worn and open.' },
+      { type: 'dialogue', text: 'I sat down.\n\nMy hands hesitated.\n\nThen I turned the page.' },
+      // Diary pages — swipe gesture
+      { type: 'diary', text: '"Thought about calling her today."' },
+      { type: 'diary', text: '"Didn\'t know what to say if she picked up."' },
+      { type: 'diary', text: '"I keep thinking about the night she left.\nI was scared.\nIt came out as anger.\nIt always does."' },
+      { type: 'diary', text: '"I know what it\'s like to love art and have it not be enough.\nWhen her mother got sick, I couldn\'t pay for the treatment.\nI\'ve never stopped thinking about that.\n\nI thought — if I had been smarter. Made different choices.\nMaybe she\'d still be here."' },
+      { type: 'dialogue', text: 'I set the notebook down.\n\nHe was an artist.\n\nHe had been an artist.' },
+      { type: 'dialogue', text: 'And after Mom died he got a new job and worked longer hours\nand I thought — I thought he wanted to forget.\nI thought he was running away from us.\n\nHe was trying to make sure I was okay.\nDrowning in guilt he never told me about.' },
+      { type: 'dialogue', text: 'Grieving in a house with a nine-year-old who needed him\nand not knowing how to be both things at once.' },
+      { type: 'diary', text: '"I didn\'t want her to struggle the way I did.\nI thought I was protecting her.\nI don\'t think she knew that.\nI don\'t think I ever said it."' },
+      { type: 'diary', text: '"I should have asked what she wanted.\nI should have listened.\n\nI keep thinking about how she looked when she left.\nLike I\'d confirmed something she already believed."' },
+      { type: 'diary', text: '"I hope she\'s still drawing.\nI hope she didn\'t stop because of me."' },
+      { type: 'diary', text: '"I\'m going to call her this week.\nI mean it this time.\n\nI just want to hear her voice."' },
+      { type: 'dialogue', text: 'Last entry.\n\nWritten one week before he died.\n\nOne week before the call I let go to voicemail.' },
+    ]
+  },
+
+  // ── OUTRO ──────────────────────────────────────────
+  {
+    room: 'hobbyRoom',
+    label: '',
+    beats: [
+      { type: 'dialogue', text: 'I sat there for a long time.\n\nLonger than I meant to.\nLonger than I ever gave him.' },
+      { type: 'dialogue', text: 'He kept the mug.\nHe kept the photo.\nHe kept every drawing.\nHe came back to this room and kept it clean\nbecause it was the only way he knew how to take care of things.' },
+      { type: 'dialogue', text: 'I never asked.\n\nNot what happened after Mom died.\nNot what he was carrying.\nNot why.' },
+      { type: 'dialogue', text: 'I can\'t ask now.\n\nThat was the part I hadn\'t prepared for.\nThe questions with nowhere left to go.' },
+      { type: 'dialogue', text: 'I closed the notebook.\n\n"I\'m still drawing," I said.\n\nQuietly.\nTo the room.' },
+      { type: 'dialogue', text: 'I packed the last of his things.\nThe mug, wrapped carefully.\nThe photo.\nThe notebook.' },
+      { type: 'dialogue', text: 'I would draw something for him.\nI didn\'t know what yet.\nBut I would.' },
+      { type: 'ending', text: 'I walked back to the front door.\nThe wind chime tapped as I stepped outside.\nStill off rhythm.\n\nThis time, it sounded a little like music.' },
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────
+
+const State = {
+  LOADING:    'LOADING',
+  TITLE:      'TITLE',
+  PLAYING:    'PLAYING',
+  WAITING_OBJ:'WAITING_OBJ',   // waiting for object recognition
+  WAITING_PALM:'WAITING_PALM', // waiting for palm gesture
+  TRANSITIONING: 'TRANSITIONING',
+  ENDED:      'ENDED',
+};
+
+let currentState   = State.LOADING;
+let currentChapter = 0;  // index into GAME_SCRIPT
+let currentBeat    = 0;  // index into chapter.beats
+let tmModel        = null;  // Teachable Machine model
+let handposeModel  = null;  // ml5 handpose
+let webcamStream   = null;
+
+// Gesture detection timers
+let palmHoldStart     = null;
+let detectionHoldStart = null;
+let lastDetectedClass  = null;
+
+// ─────────────────────────────────────────────────────
+// DOM REFERENCES
+// ─────────────────────────────────────────────────────
+
+const $loading     = document.getElementById('loading-screen');
+const $title       = document.getElementById('title-screen');
+const $game        = document.getElementById('game-container');
+const $roomBg      = document.getElementById('room-bg');
+const $roomLabel   = document.getElementById('room-label');
+const $dialogueBox = document.getElementById('dialogue-box');
+const $dialogueText= document.getElementById('dialogue-text');
+const $gesturePrompt = document.getElementById('gesture-prompt');
+const $objectPrompt  = document.getElementById('object-prompt');
+const $objectName    = document.getElementById('object-name');
+const $detectionRing = document.getElementById('detection-ring');
+const $detectionLabel= document.getElementById('detection-label');
+const $camContainer  = document.getElementById('cam-container');
+const $webcam        = document.getElementById('webcam');
+const $camCanvas     = document.getElementById('cam-canvas');
+
+// ─────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────
+
+async function init() {
+  // Track cursor
+  document.addEventListener('mousemove', e => {
+    document.documentElement.style.setProperty('--cx', e.clientX + 'px');
+    document.documentElement.style.setProperty('--cy', e.clientY + 'px');
+  });
+
+  // Create room transition overlay
+  const transEl = document.createElement('div');
+  transEl.id = 'room-transition';
+  document.body.appendChild(transEl);
+
+  // Create ending screen
+  const endEl = document.createElement('div');
+  endEl.id = 'ending-screen';
+  endEl.innerHTML = `
+    <div class="ending-inner">
+      <p class="end-title">Things I Should Have Said</p>
+      <p>She packed the last of his things.</p>
+      <p>The mug, wrapped carefully.</p>
+      <p>The photo.</p>
+      <p>The notebook.</p>
+      <br/>
+      <p><em>She would draw something for him.</em></p>
+      <p><em>She didn't know what yet.</em></p>
+      <p><em>But she would.</em></p>
+    </div>`;
+  document.body.appendChild(endEl);
+
+  await setupWebcam();
+  await loadModels();
+
+  // Hide loading, show title
+  $loading.classList.remove('active');
+  await sleep(400);
+  $title.classList.add('active');
+  currentState = State.TITLE;
+
+  startHandposeLoop();
+}
+
+// ─────────────────────────────────────────────────────
+// WEBCAM
+// ─────────────────────────────────────────────────────
+
+async function setupWebcam() {
+  try {
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+      audio: false
+    });
+    $webcam.srcObject = webcamStream;
+    await new Promise(r => $webcam.onloadedmetadata = r);
+    $webcam.play();
+    $camCanvas.width  = $webcam.videoWidth  || 640;
+    $camCanvas.height = $webcam.videoHeight || 480;
+  } catch (err) {
+    console.warn('Webcam not available:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// LOAD ML MODELS
+// ─────────────────────────────────────────────────────
+
+async function loadModels() {
+  // Load Teachable Machine model
+  try {
+    const modelURL    = MODEL_URL + 'model.json';
+    const metadataURL = MODEL_URL + 'metadata.json';
+    tmModel = await tmImage.load(modelURL, metadataURL);
+    console.log('✓ Teachable Machine model loaded');
+  } catch (err) {
+    console.warn('Teachable Machine model not found — object detection disabled.\nAdd your model to', MODEL_URL, err);
+  }
+
+  // Load ml5 HandPose
+  try {
+    handposeModel = await new Promise((resolve, reject) => {
+      const model = ml5.handpose($webcam, { flipHorizontal: true }, () => {
+        console.log('✓ HandPose model loaded');
+        resolve(model);
+      });
+      setTimeout(() => reject(new Error('HandPose timeout')), 15000);
+    });
+  } catch (err) {
+    console.warn('HandPose model not loaded:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// HANDPOSE DETECTION LOOP
+// ─────────────────────────────────────────────────────
+
+function startHandposeLoop() {
+  if (!handposeModel) return;
+
+  handposeModel.on('predict', predictions => {
+    const palmOpen = detectOpenPalm(predictions);
+
+    if (currentState === State.TITLE) {
+      handleTitlePalm(palmOpen);
+    } else if (currentState === State.WAITING_PALM) {
+      handleDialoguePalm(palmOpen);
+    } else if (currentState === State.WAITING_OBJ) {
+      // palm can still be used as fallback (optional)
+    }
+
+    // diary pages use swipe — handled separately
+  });
+}
+
+function detectOpenPalm(predictions) {
+  if (!predictions || predictions.length === 0) return false;
+  const hand = predictions[0];
+  const landmarks = hand.landmarks;
+
+  // Check that all fingertips are above their base knuckles
+  // Fingertip indices: 4(thumb), 8(index), 12(middle), 16(ring), 20(pinky)
+  // MCP knuckle indices: 2, 5, 9, 13, 17
+  const tips  = [8, 12, 16, 20];
+  const bases = [5,  9, 13, 17];
+
+  let openCount = 0;
+  for (let i = 0; i < tips.length; i++) {
+    if (landmarks[tips[i]][1] < landmarks[bases[i]][1]) openCount++;
+  }
+  return openCount >= 3; // at least 3 fingers extended
+}
+
+function detectSwipeLeft(predictions, prevLandmarks) {
+  if (!predictions || predictions.length === 0) return false;
+  if (!prevLandmarks) return false;
+  const hand = predictions[0];
+  const wristX     = hand.landmarks[0][0];
+  const prevWristX = prevLandmarks[0][0];
+  return (wristX - prevWristX) > 55; // moved right in mirrored view = swipe left
+}
+
+// ─────────────────────────────────────────────────────
+// TITLE PALM HANDLER
+// ─────────────────────────────────────────────────────
+
+function handleTitlePalm(palmOpen) {
+  if (palmOpen) {
+    if (!palmHoldStart) palmHoldStart = Date.now();
+    if (Date.now() - palmHoldStart >= PALM_HOLD_MS) {
+      palmHoldStart = null;
+      startGame();
+    }
+  } else {
+    palmHoldStart = null;
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// START GAME
+// ─────────────────────────────────────────────────────
+
+async function startGame() {
+  currentState = State.TRANSITIONING;
+  $title.classList.remove('active');
+  await sleep(600);
+
+  $game.classList.add('visible');
+  $camContainer.classList.remove('hidden');
+
+  await loadChapter(0);
+  await loadBeat(0);
+  currentState = State.WAITING_PALM;
+}
+
+// ─────────────────────────────────────────────────────
+// CHAPTER / BEAT LOADING
+// ─────────────────────────────────────────────────────
+
+async function loadChapter(chapterIndex, fromBeat = 0) {
+  const chapter = GAME_SCRIPT[chapterIndex];
+  currentChapter = chapterIndex;
+
+  // Update room background with fade
+  await fadeRoomTransition(async () => {
+    $roomBg.style.backgroundImage = `url('${ROOM_IMAGES[chapter.room]}')`;
+    $roomLabel.textContent = chapter.label;
+    $roomLabel.classList.remove('visible');
+  });
+
+  await sleep(200);
+  $roomLabel.classList.add('visible');
+
+  currentBeat = fromBeat;
+}
+
+async function loadBeat(beatIndex) {
+  const chapter = GAME_SCRIPT[currentChapter];
+  if (beatIndex >= chapter.beats.length) {
+    // Move to next chapter
+    if (currentChapter + 1 < GAME_SCRIPT.length) {
+      await loadChapter(currentChapter + 1);
+      await loadBeat(0);
+    } else {
+      endGame();
+    }
+    return;
+  }
+
+  currentBeat = beatIndex;
+  const beat = chapter.beats[beatIndex];
+
+  // Fade out current text
+  $dialogueText.classList.remove('visible');
+  await sleep(400);
+
+  // Style text for diary entries
+  if (beat.type === 'diary') {
+    $dialogueText.classList.add('diary');
+  } else {
+    $dialogueText.classList.remove('diary');
+  }
+
+  $dialogueText.textContent = beat.text;
+
+  // Show/hide gesture prompt
+  $gesturePrompt.classList.remove('hidden');
+  $gesturePrompt.classList.remove('visible');
+
+  if (beat.type === 'object') {
+    // Object recognition beat
+    showObjectPrompt(beat);
+    $gesturePrompt.classList.add('hidden');
+    currentState = State.WAITING_OBJ;
+    startObjectDetection(beat.object);
+  } else if (beat.type === 'diary') {
+    // Diary page — swipe gesture
+    $gesturePrompt.textContent = '👋 Swipe hand to turn page';
+    currentState = State.WAITING_PALM;
+    startDiarySwipeDetection();
+    hideObjectPrompt();
+  } else if (beat.type === 'ending') {
+    hideObjectPrompt();
+    currentState = State.WAITING_PALM;
+  } else {
+    // Regular dialogue beat
+    hideObjectPrompt();
+    currentState = State.WAITING_PALM;
+  }
+
+  // Fade in text
+  await sleep(100);
+  $dialogueText.classList.add('visible');
+
+  if (beat.type !== 'object') {
+    await sleep(500);
+    $gesturePrompt.classList.add('visible');
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// DIALOGUE PALM (advance to next beat)
+// ─────────────────────────────────────────────────────
+
+function handleDialoguePalm(palmOpen) {
+  if (currentState !== State.WAITING_PALM) return;
+
+  if (palmOpen) {
+    if (!palmHoldStart) palmHoldStart = Date.now();
+    // Visual feedback — pulse the gesture prompt
+    if (Date.now() - palmHoldStart >= PALM_HOLD_MS) {
+      palmHoldStart = null;
+      advanceBeat();
+    }
+  } else {
+    palmHoldStart = null;
+  }
+}
+
+function advanceBeat() {
+  const chapter = GAME_SCRIPT[currentChapter];
+  const beat = chapter.beats[currentBeat];
+
+  if (beat.type === 'ending') {
+    endGame();
+    return;
+  }
+
+  currentState = State.TRANSITIONING;
+  loadBeat(currentBeat + 1).then(() => {
+    if (currentState === State.TRANSITIONING) {
+      currentState = State.WAITING_PALM;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// OBJECT DETECTION
+// ─────────────────────────────────────────────────────
+
+function showObjectPrompt(beat) {
+  $objectName.textContent = beat.instruction || beat.object;
+  $objectPrompt.classList.remove('hidden');
+  $detectionRing.classList.remove('detected');
+  $detectionLabel.textContent = 'Waiting…';
+}
+
+function hideObjectPrompt() {
+  $objectPrompt.classList.add('hidden');
+  $camContainer.classList.remove('detected');
+}
+
+async function startObjectDetection(targetClass) {
+  if (!tmModel) {
+    // No model loaded — skip after 2 seconds (dev mode)
+    console.warn('No TM model — skipping object detection for:', targetClass);
+    await sleep(2000);
+    onObjectDetected();
+    return;
+  }
+
+  let frameId;
+
+  async function detect() {
+    if (currentState !== State.WAITING_OBJ) return;
+
+    try {
+      const predictions = await tmModel.predict($webcam);
+      const best = predictions.reduce((a, b) => a.probability > b.probability ? a : b);
+
+      const matched = best.className.toLowerCase() === targetClass.toLowerCase()
+                   && best.probability >= CONFIDENCE_THRESHOLD;
+
+      if (matched) {
+        if (!detectionHoldStart) detectionHoldStart = Date.now();
+        const elapsed = Date.now() - detectionHoldStart;
+        const pct = Math.min(elapsed / DETECTION_HOLD_MS, 1);
+
+        $detectionRing.classList.add('detected');
+        $camContainer.classList.add('detected');
+        $detectionLabel.textContent = 'Recognized ✓';
+
+        if (elapsed >= DETECTION_HOLD_MS) {
+          detectionHoldStart = null;
+          cancelAnimationFrame(frameId);
+          onObjectDetected();
+          return;
+        }
+      } else {
+        detectionHoldStart = null;
+        $detectionRing.classList.remove('detected');
+        $camContainer.classList.remove('detected');
+        $detectionLabel.textContent = 'Waiting…';
+      }
+    } catch (err) {
+      console.error('Detection error:', err);
+    }
+
+    frameId = requestAnimationFrame(detect);
+  }
+
+  detect();
+}
+
+function onObjectDetected() {
+  hideObjectPrompt();
+  currentState = State.TRANSITIONING;
+  loadBeat(currentBeat + 1).then(() => {
+    if (currentState === State.TRANSITIONING) {
+      currentState = State.WAITING_PALM;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// DIARY SWIPE DETECTION
+// ─────────────────────────────────────────────────────
+
+let prevHandLandmarks = null;
+let swipeCooldown = false;
+
+function startDiarySwipeDetection() {
+  if (!handposeModel) return;
+
+  handposeModel.on('predict', predictions => {
+    if (currentState !== State.WAITING_PALM) return;
+
+    const beat = GAME_SCRIPT[currentChapter].beats[currentBeat];
+    if (beat.type !== 'diary') return;
+    if (swipeCooldown) return;
+
+    const swipe = detectSwipeLeft(predictions, prevHandLandmarks);
+    if (predictions && predictions.length > 0) {
+      prevHandLandmarks = predictions[0].landmarks;
+    }
+
+    if (swipe) {
+      swipeCooldown = true;
+      setTimeout(() => swipeCooldown = false, 800);
+      advanceBeat();
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// ROOM FADE TRANSITION
+// ─────────────────────────────────────────────────────
+
+async function fadeRoomTransition(callback) {
+  const overlay = document.getElementById('room-transition');
+  overlay.classList.add('fading');
+  await sleep(1200);
+  if (callback) await callback();
+  overlay.classList.remove('fading');
+  await sleep(1200);
+}
+
+// ─────────────────────────────────────────────────────
+// ENDING
+// ─────────────────────────────────────────────────────
+
+async function endGame() {
+  currentState = State.ENDED;
+
+  $dialogueText.classList.remove('visible');
+  await sleep(600);
+
+  const endEl = document.getElementById('ending-screen');
+  endEl.classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────
+// UTILITY
+// ─────────────────────────────────────────────────────
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ─────────────────────────────────────────────────────
+// FALLBACK: keyboard spacebar (for testing without gestures)
+// Remove this block before final submission if desired
+// ─────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (currentState === State.TITLE) {
+      startGame();
+    } else if (currentState === State.WAITING_PALM) {
+      advanceBeat();
+    } else if (currentState === State.WAITING_OBJ) {
+      // Skip object detection with Enter during testing
+      if (e.code === 'Enter') onObjectDetected();
+    }
+  }
+  if (e.code === 'Enter' && currentState === State.WAITING_OBJ) {
+    onObjectDetected();
+  }
+});
+
+// ─────────────────────────────────────────────────────
+// START
+// ─────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', init);
+*/

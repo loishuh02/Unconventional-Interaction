@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.js"></script>
+    <script src="https://unpkg.com/ml5@1/dist/ml5.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8" />
+
+  </head>
+  <body>
+    <main>
+    </main>
+    <script src="sketch.js"></script>
+  </body>
+</html>
+
+
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Things I Should Have Said</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+-->
+
+  <!-- LOADING SCREEN
+  <div id="loading-screen" class="overlay active">
+    <div class="overlay-inner">
+      <p class="loading-text">Preparing…</p>
+      <div class="loading-bar"><div class="loading-fill"></div></div>
+    </div>
+  </div>
+   -->
+
+  <!-- TITLE SCREEN
+  <div id="title-screen" class="overlay">
+    <div class="overlay-inner">
+      <h1 class="game-title">Things I Should Have Said</h1>
+      <p class="game-subtitle">a game about coming home too late</p>
+      <div class="gesture-hint">
+        <div class="palm-icon">✋</div>
+        <p>Hold open palm to begin</p>
+      </div>
+    </div>
+  </div>
+   -->
+
+  <!-- MAIN GAME
+  <div id="game-container">
+     -->
+
+    <!-- Room background
+    <div id="room-bg"></div> -->
+
+    <!-- Atmosphere layers
+    <div class="grain-overlay"></div>
+    <div class="vignette"></div> -->
+
+    <!-- Room name label
+    <div id="room-label"></div> -->
+
+    <!-- Dialogue box
+    <div id="dialogue-box">
+      <div id="dialogue-text"></div>
+      <div id="gesture-prompt" class="hidden">
+        <span>✋</span> Hold open palm to continue
+      </div>
+    </div> -->
+
+    <!-- Object detection prompt
+    <div id="object-prompt" class="hidden">
+      <p>Present: <strong id="object-name"></strong></p>
+      <div id="detection-ring">
+        <div class="ring-inner"></div>
+      </div>
+      <p id="detection-label">Waiting…</p>
+    </div> -->
+
+    <!-- Webcam preview (corner)
+    <div id="cam-container" class="hidden">
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="cam-canvas"></canvas>
+      <div id="cam-glow"></div>
+    </div>
+
+  </div>
+
+  <script src="sketch.js"></script>
+</body>
+</html>
+-->

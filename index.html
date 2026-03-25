@@ -1,16 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.10/p5.min.js"></script>
-    <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+    <meta charset="utf-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.js"></script>
+    <script src="https://unpkg.com/ml5@1/dist/ml5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="style.css">
   </head>
 
   <title>Unconventional Interaction Project</title>
 
   <body>
+    <main>
+      <!-- p5 canvas mounts here (shown as webcam feed) -->
+    </main>
+
+    <!-- GAME UI overlay — sits on top of p5 canvas -->
+
+    <!-- Fade overlay -->
+    <div id="fade-overlay"></div>
+
+    <!-- TITLE SCREEN -->
+    <div id="title-screen">
+      <div class="grain-overlay"></div>
+      <div id="title-content">
+        <p class="eyebrow">a short interactive story</p>
+        <h1 id="game-title">Things I Should<br>Have Said</h1>
+        <div class="title-rule"></div>
+        <p class="begin-prompt">
+          <!-- <span class="palm-icon">✋</span> -->
+          show your palm to begin
+        </p>
+        <p id="hand-debug" class="hand-debug"></p>
+      </div>
+    </div>
+
+    <!-- GAME SCREEN (hidden until game starts) -->
+    <div id="game-screen" class="hidden">
+
+      <!-- Room background image -->
+      <div id="room-bg"></div>
+      <div id="room-vignette"></div>
+
+      <!-- Webcam corner box (wraps the p5 canvas after game starts) -->
+      <div id="webcam-corner">
+        <div id="webcam-label">loading...</div>
+      </div>
+
+      <!-- Dialogue box -->
+      <div id="dialogue-container">
+        <div id="dialogue-box">
+          <p id="dialogue-text"></p>
+          <div id="dialogue-footer">
+            <span id="gesture-hint">show palm to continue</span>
+            <span id="page-counter"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Object prompt -->
+      <div id="object-prompt" class="hidden">
+        <span id="object-prompt-text"></span>
+      </div>
+
+      <!-- Detection badge -->
+      <div id="detection-badge" class="hidden">
+        <span id="detection-text"></span>
+      </div>
+
+      <!-- Object reveal image bottom center -->
+      <img id="object-reveal-img" class="hidden" src="" alt="" />
+
+    </div>
+
     <script src="sketch.js"></script>
   </body>
 </html>
