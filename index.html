@@ -31,10 +31,7 @@
         <p class="eyebrow">a short interactive story</p>
         <h1 id="game-title">Things I Should<br>Have Said</h1>
         <div class="title-rule"></div>
-        <p class="begin-prompt">
-          <!-- <span class="palm-icon">✋</span> -->
-          show your palm to begin
-        </p>
+        <p class="begin-prompt">show thumbs up to begin</p>
         <p id="hand-debug" class="hand-debug"></p>
       </div>
     </div>
@@ -50,6 +47,9 @@
       <div id="webcam-corner">
         <div id="webcam-label">loading...</div>
       </div>
+
+      <!-- Object reveal image: shown above dialogue after recognition -->
+      <img id="object-reveal-img" src="" alt="" style="display:none;" />
 
       <!-- Dialogue box -->
       <div id="dialogue-container">
@@ -71,9 +71,6 @@
       <div id="detection-badge" class="hidden">
         <span id="detection-text"></span>
       </div>
-
-      <!-- Object reveal image bottom center -->
-      <img id="object-reveal-img" class="hidden" src="" alt="" />
 
     </div>
 

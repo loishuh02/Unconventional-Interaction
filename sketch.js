@@ -1,49 +1,100 @@
 // ============================================================
-//  THINGS I SHOULD HAVE SAID
-//  Built on top of the original working classifier pattern:
+//  THINGS I SHOULD HAVE SAID — sketch.js
 //
-//    preload()  → ml5.imageClassifier(url, { flipped:true })
-//    setup()    → createCapture + classifyStart(video, gotResults)
-//    gotResults → updates label variable each frame
-//    draw()     → reads label, reacts to it
+//  Interaction model:
+//    TITLE SCREEN
+//      Camera feed visible so user can check framing
+//      Feedback bar shows gesture + object live
+//      Thumbs-up → start game
 //
-//  Nothing changed about how classification works.
-//  Game logic, gestures, and UI are layered on top.
+//    DIALOGUE (auto-play, 3 s per line)
+//      Palm  → pause immediately
+//      Thumbs-up → start (title) / resume when paused (game)
+//      Feedback text (top-center) shows object / gesture / PAUSED
+//      Camera NOT shown during game
+//
+//    OBJECT PROMPT
+//      Auto-play stops; user presents physical object
+//      Feedback text shows what classifier sees
+//
+//    DIARY (hobby room)
+//      Pinch → turn page
+//
+//    OUTRO
+//      Auto-plays to end → fade to black
 // ============================================================
 
-// ── ORIGINAL CLASSIFIER VARS (unchanged from your working code) ──
+// ── BACKGROUND AUDIO ─────────────────────────────────────────
+var porchAudio = new Audio("./audio/porch_audio.mp3");
+porchAudio.loop = true;
+
+function stopAllAudio() {
+  porchAudio.pause();
+  porchAudio.currentTime = 0;
+}
+
+// ── ONE-SHOT AUDIO ────────────────────────────────────────────
+var doorAudio  = new Audio("./audio/door_audio.mp3");
+var mugAudio   = new Audio("./audio/mug_audio.mp3");
+var photoAudio = new Audio("./audio/photo_audio.mp3");
+var phoneAudio = new Audio("./audio/phone_audio.mp3");
+var pageAudio  = new Audio("./audio/page_audio.mp3");
+
+function playOneShot(audio) {
+  audio.currentTime = 0;
+  audio.play().catch(function(){});
+}
+
+// ── CLASSIFIER ───────────────────────────────────────────────
 let classifier;
 let video;
 let label = "waiting...";
 
-// ── MEDIAPIPE HANDS ──────────────────────────────────────────────
+// ── MEDIAPIPE HANDS ──────────────────────────────────────────
 let mpHands;
-let gestureLabel     = "none";   // "palm" | "pinch" | "none"
-let palmHoldCount    = 0;
-const HOLD_FRAMES    = 18;       // frames palm must be held before firing
-let palmFired        = false;
-let palmBlockedUntil = 0;        // 2-second block after palm fires
-let lastPinchTime    = 0;
-const PINCH_COOLDOWN = 900;
+let gestureLabel = "none"; // "palm" | "thumbsup" | "pinch" | "none"
 
-// ── GAME STATE ───────────────────────────────────────────────────
+const HOLD_FRAMES    = 18;
+let   palmHoldCount  = 0;
+let   palmFired      = false;
+let   palmBlockedUntil = 0;
+
+let   lastPinchTime  = 0;
+const PINCH_COOLDOWN = 1000; // minimum ms between page turns
+let   pinchActive    = false; // true while fingers are held in pinch position
+                              // page turn only fires on the LEADING EDGE of a
+                              // new pinch (requires releasing between turns)
+
+let   lastThumbTime  = 0;
+const THUMB_COOLDOWN = 1200;
+
+// ── AUTO-PLAY ────────────────────────────────────────────────
+const DIALOGUE_MS = 5000; // ← ms each dialogue line stays visible
+let   autoTimer   = null;
+let   isPaused    = false;
+
+// ── GAME STATE ───────────────────────────────────────────────
 const STATE = {
-  TITLE:     "TITLE",
-  PORCH:     "PORCH",
-  HALL_WORK: "HALL_WORK",  // hallway — work phone trigger
-  HALL_DAD:  "HALL_DAD",   // hallway — dad's missed call trigger
-  KITCHEN:   "KITCHEN"
+  TITLE:          "TITLE",
+  PORCH:          "PORCH",
+  HALLWAY_INTRO:  "HALLWAY_INTRO",
+  KITCHEN:        "KITCHEN",
+  BEDROOM:        "BEDROOM",
+  HALLWAY:        "HALLWAY",
+  HOBBY:          "HOBBY",
+  OUTRO:          "OUTRO",
+  END:            "END"
 };
 let gameState        = STATE.TITLE;
 let isFading         = false;
-let waitingForObject = false;   // true = classifier mode, gestures OFF
+let waitingForObject = false;
 let objectDetected   = false;
 let objectCooldown   = false;
+let isDiaryMode      = false; // true while diary pinch is active — blocks palm/thumbsup
 
-// ── SCENE DATA ───────────────────────────────────────────────────
+// ── SCENE DATA ───────────────────────────────────────────
 const SCENES = {
 
-  // ── PORCH ────────────────────────────────────────────────
   PORCH: {
     bg:               "./images/porch.png",
     objectTrigger:    "key",
@@ -51,96 +102,136 @@ const SCENES = {
     objectImage:      "./images/hand_key.png",
     lines: [
       "The house looked smaller than I remembered.",
-      "The wind chime was still there.\nStill off rhythm.\nStill trying.",
-      "They called on Tuesday.\n“Come quickly. Sort everything.\nThe property needs to be sold.”",
-      "I was nine when Mom died.\nDad and I didn’t talk about it.\nWe just… moved around each other.\nTwo people in a house that used to hold three.",
-      "He got busier after.\nLonger hours. A new job.\nI thought he wanted to forget.\nI didn’t know what he was carrying.\nI didn’t ask.",
-      "By the time I was old enough to ask,\nI was already too angry.",
-      "The night I told him I’d applied for studio art,\nhe looked at me like I’d said something dangerous.\n\n“You’re throwing your life away.”",
-      "I had spent years waiting for him to show up.\nAnd when he finally did,\nit was to take something from me.",
-      "I told him he had no right.\nI left that night.\nI didn’t look back.",
-      "That was ten years ago.",
-      "I reached into my bag.\nPast my own life, carefully built somewhere else.\nSearching for the one thing I brought\nthat belonged here.",
-      null
+      "They called on Tuesday.\n“Come quickly. The property needs to be sold.”\n\nLike ten years could be packed into boxes.",
+      "I was nine when Mom died.\nAfter that, it was just the two of us.\nWe never learned how to be that. We stopped talking to each other.",
+      "The night I told him I’d applied for art school,\nhe said I was throwing my life away.\n\nI told him he had no right to judge.",
+      "I left that night.\nThat was ten years ago.",
+      "I reached for a key.",
+      null,
+      "The old key turned. A small keychain I’d given him once\nhung from the ring.\nI tried not to look at it."
     ]
   },
 
-  // ── HALLWAY — PHASE 1: work notifications ────────────────
-  // Shows hand_phone_work.png on recognition, then continues
-  // dialogue in the same room before asking for phone again.
-  HALL_WORK: {
+  HALLWAY_INTRO: {
     bg:               "./images/hallway.png",
-    objectTrigger:    "phone",
-    objectPromptText: "— present the phone —",
-    objectImage:      "./images/hand_phone_work.png",
+    objectTrigger:    null,
+    objectPromptText: null,
+    objectImage:      null,
     lines: [
-      "The door opened with a reluctant groan.",
       "The air inside was still.\nNot stale.\nPaused.",
-      "The same couch.\nThe same table.\nThe same silence that used to swallow everything.",
-      "After Mom died, the quiet got heavy.\nDad stopped filling it.\nI’d come home from school and the house would just be waiting —\nno smell of dinner, no TV in the background.\nJust rooms.",
-      "I used to draw at the kitchen table to make it feel less empty.\nHe never said anything about the drawings.\nI thought that meant he didn’t notice.",
-      "A sharp vibration broke through the stillness.",
-      null
+      "Nothing had changed.\nThe same silence that used to swallow everything."
     ]
   },
 
-  // ── HALLWAY — PHASE 2: dad’s missed call ───────────────────
-  // Same background, no fade between phases.
-  // hand_phone_work.png is hidden before this scene loads.
-  // Shows hand_phone_dad.png on recognition.
-  HALL_DAD: {
-    bg:               "./images/hallway.png",
-    objectTrigger:    "phone",
-    objectPromptText: "— present the phone —",
-    objectImage:      "./images/hand_phone_dad.png",
-    skipFade:         true,   // no room transition — same hallway
-    lines: [
-      "Work notifications. The world outside, still running.",
-      "I moved to dismiss them.",
-      "And saw it.",
-      "Dad (3)\nDad — 1 voicemail",
-      "The last call: eight days ago.",
-      "I had told myself I’d listen when I was ready.",
-      "My thumb hovered.",
-      null
-    ]
-  },
-
-  // ── KITCHEN ──────────────────────────────────────────────
   KITCHEN: {
     bg:               "./images/kitchen.png",
     objectTrigger:    "mug",
     objectPromptText: "— present the mug —",
     objectImage:      "./images/hand_mug.png",
     lines: [
-      "I pressed play.",
-      "“Hey. It’s me.”\nA pause.\n“I know you probably won’t pick up.”",
-      "Another pause. The sound of him exhaling.",
-      "“I’ve been thinking a lot lately.\nI just… wanted to hear your voice.\nEven if it’s just your voicemail.”",
-      "The message ended.",
-      "Eight days ago.\nOne week before he died.",
-      "I held the button down until the screen went dark.",
-      "The kitchen felt the same.\nThat surprised me.",
-      "I expected distance.\nSomeone else’s space.\nBut it just felt like Saturday mornings.\nLike cereal before school.",
+      "I went to the kitchen.\nMy throat was clenched and I didn’t know why.",
       "And then I saw it.",
+      null,
+      "He kept the mug.\nStill sitting out.\nStill being used.",
+      "I made this in third grade. Cracked glaze, uneven bottom.\nI used to tell him to throw it away.\n\nHe never did."
+    ]
+  },
+
+  BEDROOM: {
+    bg:               "./images/bedroom.png",
+    objectTrigger:    "photo",
+    objectPromptText: "— present the photo —",
+    objectImage:      "./images/hand_photo.png",
+    lines: [
+      "I was already in the bedroom\nbefore I realized I’d moved.",
+      "Feeling unmoored, I looked around.",
+      "On the bedside table —\na photo frame, facing the bed.\n\nIt was me.",
+      null,
+      "He kept this next to where he slept.\nEvery night.\nEven after I left home.",
+      "I’d spent years thinking he’d forgotten me.\nBut this didn’t look like someone who forgot."
+    ]
+  },
+
+  HALLWAY: {
+    bg:               "./images/hallway.png",
+    objectTrigger:    "phone",
+    objectPromptText: "— present the phone —",
+    objectImage:      "./images/hand_phone_work.png",
+    objectImage2:     "./images/hand_phone_dad.png",
+    lines: [
+      "I rushed out into the hallway.\nSomething felt wrong.",
+      "A sharp vibration broke through the quiet.",
+      null,
+      "Work notifications. Three of them. I dismissed them.",
+      "And then, underneath —\n\nDad — 1 voicemail\n\nThe last call: eight days ago.",
+      "I’d told myself I’d listen when I was ready.\n\nI was never ready.",
+      "My thumb moved on its own.",
+      null,
+      "“Hey. It’s me.”\nA pause.\n“I just… wanted to talk to you.”",
+      "The message ended.\n\nEight days ago.\nOne week before he died.",
+      "Suddenly the silence felt loud."
+    ]
+  },
+
+  HOBBY: {
+    bg:               "./images/hobbyroom.png",
+    objectTrigger:    null,
+    objectPromptText: null,
+    objectImage:      null,
+    isDiary:          true,
+    lines: [
+      "I couldn’t stay.\nI opened the door in front of me.",
+      "I hadn’t opened this door since Mom died.\nIt used to be her hobby room.\nMy dad never went inside either.",
+      "Not what I expected.\nIt was clean.\nMaintained.\nCarefully kept.",
+      "And my drawings.\nFramed.\nAll of them.",
+      "In the corner — a desk.\nA notebook.\nWorn. Open.",
+      null
+    ],
+    diaryPages: [
+      "(pinch and move to turn pages)",
+      "Thought about calling her today.\nBut ended up not calling.",
+      "I know what it’s like to love art and not be able to survive on it.\nWhen her mother got sick, I couldn’t pay for the treatment.\nI’ve never stopped thinking about that.",
+      "I didn’t want her to struggle the way I did.\nI thought I was protecting her.",
+      "I hope she’s still drawing.",
+      "I’m going to call her this week.\nI mean it this time.",
+      "I just want to say one last thing."
+    ]
+  },
+
+  OUTRO: {
+    bg:               "./images/hobbyroom.png",
+    objectTrigger:    null,
+    objectPromptText: null,
+    objectImage:      null,
+    isOutro:          true,
+    lines: [
+      "Last entry.\nOne week before he died.",
+      "The same day I ignored his call and voicemail.",
+      "I closed the notebook.",
+      "I wanted to say something back to him.\nI couldn’t.\nI still can’t.",
+      "There were things I should have said.\nBut never did.\nAnd will never get to say.",
       null
     ]
   }
+}
 
-};
+// ── DIALOGUE / DIARY / OUTRO STATE ───────────────────────────
+let dialogueIndex  = 0;
+let diaryPageIndex = 0;
+let outroIndex     = 0;
+let currentScene       = null;
+let currentObjectImage = null; // which hand image to show on recognition
+let nullCount          = 0;    // tracks null sentinels passed in current scene
 
-let dialogueIndex = 0;
-let currentScene  = null;
-
-// ── DOM REFS (assigned in setup) ─────────────────────────────────
+// ── DOM REFS ─────────────────────────────────────────────────
 let titleScreen, gameScreen, fadeOverlay;
 let dialogueText, gestureHint, pageCounter;
 let objectPromptEl, objectPromptTextEl;
 let detectionBadge, detectionTextEl;
-let objectImageEl, webcamCorner, webcamLabelEl, handDebug;
+let objectImageEl, webcamCorner, handDebug, feedbackEl;
 
 // ============================================================
-//  PRELOAD  — identical to your original working code
+//  PRELOAD
 // ============================================================
 function preload() {
   classifier = ml5.imageClassifier(
@@ -150,39 +241,24 @@ function preload() {
 }
 
 // ============================================================
-//  gotResults  — identical to your original working code
-//  label is updated here every classification cycle
+//  gotResults
 // ============================================================
 function gotResults(results) {
   label = results[0].label;
-
-  // Show current classifier label in the webcam corner
-  // (only when no hand gesture is overriding the display)
-  if (gestureLabel === "none" && webcamLabelEl) {
-    webcamLabelEl.textContent = label;
-  }
+  updateFeedback();
 }
 
 // ============================================================
-//  SETUP  — creates canvas + video exactly as your original,
-//  then grabs DOM refs and inits MediaPipe
+//  SETUP
 // ============================================================
 function setup() {
-  // Create canvas in <main> — same as your original
   let cnv = createCanvas(640, 480);
-
-  // In game mode we move this canvas into the webcam corner div.
-  // For now it sits in <main> at full size (title screen hides it).
   cnv.parent(select("main").elt);
 
-  // Video capture — same as your original
   video = createCapture(VIDEO, { flipped: true });
   video.hide();
-
-  // Start classification — same as your original
   classifier.classifyStart(video, gotResults);
 
-  // ── DOM refs ──────────────────────────────────────────────
   titleScreen       = document.getElementById("title-screen");
   gameScreen        = document.getElementById("game-screen");
   fadeOverlay       = document.getElementById("fade-overlay");
@@ -195,43 +271,33 @@ function setup() {
   detectionTextEl   = document.getElementById("detection-text");
   objectImageEl     = document.getElementById("object-reveal-img");
   webcamCorner      = document.getElementById("webcam-corner");
-  webcamLabelEl     = document.getElementById("webcam-label");
   handDebug         = document.getElementById("hand-debug");
+  feedbackEl        = document.getElementById("feedback-text");
 
-  // ── MediaPipe Hands ───────────────────────────────────────
   initMediaPipeHands();
 }
 
 // ============================================================
-//  DRAW  — runs every frame
-//  On title screen: draw video feed full size + label bar
-//  On game screen:  object detection check only
+//  DRAW
 // ============================================================
 function draw() {
   if (gameState === STATE.TITLE) {
-    // Show live camera feed on title screen so user can see themselves
     background(20, 12, 6);
-    tint(255, 60);          // dim/ghosted
+    tint(255, 80);
     image(video, 0, 0, width, height);
     noTint();
-
-    // Small label bar at bottom (same as your original draw pattern)
     rectMode(CENTER);
-    fill(0, 0, 0, 180);
+    fill(0, 0, 0, 190);
     noStroke();
     rect(width / 2, height - 24, width, 48);
-    textSize(16);
+    textSize(15);
     fill(200, 160, 80);
     textAlign(CENTER, CENTER);
     text("gesture: " + gestureLabel + "   |   object: " + label, width / 2, height - 24);
-
   } else {
-    // Game is running — canvas is now small in the corner
-    // Just draw the video feed into the canvas
-    background(10, 6, 2);
+    // Camera hidden during game; ML5 still needs a frame to classify
+    background(0);
     image(video, 0, 0, width, height);
-
-    // Check object detection every frame
     if (waitingForObject && !objectCooldown && !isFading && currentScene) {
       if (label === currentScene.objectTrigger) {
         triggerObjectDetected();
@@ -241,63 +307,96 @@ function draw() {
 }
 
 // ============================================================
+//  FEEDBACK TEXT — removed; function kept as no-op so existing
+//  calls throughout the code don’t throw errors.
+// ============================================================
+function updateFeedback() {}
+// ============================================================
 //  MEDIAPIPE HANDS
 // ============================================================
 function initMediaPipeHands() {
-  // MediaPipe uses its own separate camera stream (not p5 video)
-  let mpVideo = document.createElement("video");
+  var mpVideo = document.createElement("video");
   mpVideo.setAttribute("playsinline", "");
-  mpVideo.setAttribute("autoplay",    "");
-  mpVideo.setAttribute("muted",       "");
+  mpVideo.setAttribute("autoplay", "");
+  mpVideo.setAttribute("muted", "");
   mpVideo.style.display = "none";
   document.body.appendChild(mpVideo);
 
   mpHands = new Hands({
-    locateFile: function(file) {
-      return "https://cdn.jsdelivr.net/npm/@mediapipe/hands/" + file;
+    locateFile: function(f) {
+      return "https://cdn.jsdelivr.net/npm/@mediapipe/hands/" + f;
     }
   });
-
   mpHands.setOptions({
-    maxNumHands:            1,
-    modelComplexity:        1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence:  0.6
+    maxNumHands: 1, modelComplexity: 1,
+    minDetectionConfidence: 0.7, minTrackingConfidence: 0.6
   });
-
   mpHands.onResults(onHandResults);
 
-  var mpCamera = new Camera(mpVideo, {
-    onFrame: async function() {
-      await mpHands.send({ image: mpVideo });
-    },
-    width:  640,
-    height: 480
+  var mpCam = new Camera(mpVideo, {
+    onFrame: async function() { await mpHands.send({ image: mpVideo }); },
+    width: 640, height: 480
   });
-
-  mpCamera.start();
+  mpCam.start();
 }
 
+// ============================================================
+//  HAND RESULTS
+// ============================================================
 function onHandResults(results) {
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
     gestureLabel  = "none";
     palmHoldCount = 0;
     palmFired     = false;
-    if (!waitingForObject) updateHandUI("none");
+    updateFeedback();
+    if (handDebug && gameState === STATE.TITLE)
+      handDebug.textContent = "object: " + label;
     return;
   }
 
-  // During object recognition mode, skip all gesture processing
-  if (waitingForObject) return;
+  if (waitingForObject) return; // image recognition mode — skip all gestures
 
   var lm       = results.multiHandLandmarks[0];
   var detected = classifyGesture(lm);
   gestureLabel  = detected;
+  updateFeedback();
 
-  updateHandUI(detected);
+  if (handDebug && gameState === STATE.TITLE) {
+    handDebug.textContent = detected !== "none"
+      ? "gesture: " + detected + "   |   object: " + label
+      : "object: " + label;
+  }
+
+  // During diary: only allow pinch (page turn); block everything else
+  if (isDiaryMode) {
+    if (detected === "pinch") {
+      // Only fire on the LEADING EDGE — when pinch just became active
+      // AND enough time has passed since the last turn.
+      // pinchActive=true means fingers are already held; don't re-fire.
+      if (!pinchActive) {
+        pinchActive = true;
+        var nowD = Date.now();
+        if (nowD - lastPinchTime >= PINCH_COOLDOWN) {
+          lastPinchTime = nowD;
+          showDiaryPage(diaryPageIndex + 1);
+        }
+      }
+    } else {
+      // Hand left pinch state — reset so next pinch can fire
+      pinchActive = false;
+    }
+    return; // block palm, thumbsup, everything else
+  }
+
   handleGestureEvent(detected);
 }
 
+// ============================================================
+//  GESTURE CLASSIFICATION
+//  palm     — 4 fingers extended
+//  thumbsup — thumb up, fingers curled
+//  pinch    — thumb tip close to index tip
+// ============================================================
 function classifyGesture(lm) {
   var indexUp  = lm[8].y  < lm[5].y;
   var middleUp = lm[12].y < lm[9].y;
@@ -306,37 +405,50 @@ function classifyGesture(lm) {
 
   if (indexUp && middleUp && ringUp && pinkyUp) return "palm";
 
-  var dx       = lm[4].x - lm[8].x;
-  var dy       = lm[4].y - lm[8].y;
+  var thumbTipHigh  = lm[4].y < lm[3].y && lm[4].y < lm[2].y;
+  var fingersCurled = !indexUp && !middleUp && !ringUp && !pinkyUp;
+  if (thumbTipHigh && fingersCurled) return "thumbsup";
+
+  var dx = lm[4].x - lm[8].x;
+  var dy = lm[4].y - lm[8].y;
   var dist     = Math.sqrt(dx * dx + dy * dy);
   var handSize = Math.abs(lm[0].y - lm[9].y) || 0.1;
-
   if (dist / handSize < 0.35) return "pinch";
 
   return "none";
 }
 
 // ============================================================
-//  GESTURE HANDLER
-//  Gestures are completely disabled when waitingForObject=true
+//  GESTURE EVENTS
 // ============================================================
 function handleGestureEvent(gesture) {
-  if (waitingForObject) return;  // object recognition mode: no gestures
+  if (waitingForObject) return;  // image recognition mode — no gestures
+  if (isDiaryMode)      return;  // diary pinch mode — no palm or thumbsup
   if (isFading)         return;
-
   var now = Date.now();
 
+  // THUMBS UP: start game on title / resume when paused
+  if (gesture === "thumbsup") {
+    if (now - lastThumbTime < THUMB_COOLDOWN) return;
+    lastThumbTime = now;
+    if (gameState === STATE.TITLE) {
+      startGame();
+    } else if (isPaused) {
+      resumeDialogue();
+    }
+  }
+
+  // PALM: return to title on end screen / pause dialogue during game
   if (gesture === "palm") {
     palmHoldCount++;
     if (palmHoldCount >= HOLD_FRAMES && !palmFired) {
       if (now < palmBlockedUntil) return;
       palmFired        = true;
       palmBlockedUntil = now + 2000;
-
-      if (gameState === STATE.TITLE) {
-        startGame();
-      } else {
-        advanceDialogue();
+      if (gameState === STATE.END) {
+        returnToTitle();
+      } else if (gameState !== STATE.TITLE) {
+        pauseDialogue();
       }
     }
   } else {
@@ -344,33 +456,49 @@ function handleGestureEvent(gesture) {
     palmFired     = false;
   }
 
+  // PINCH: diary page turn
   if (gesture === "pinch") {
     if (now - lastPinchTime < PINCH_COOLDOWN) return;
     lastPinchTime = now;
-    console.log("[PINCH] reserved for diary");
+    if (gameState === STATE.HOBBY && currentScene && currentScene.isDiary) {
+      showDiaryPage(diaryPageIndex + 1);
+    }
   }
 }
 
-function updateHandUI(gesture) {
-  if (webcamLabelEl) {
-    if (gesture === "palm") {
-      var pct = Math.min(100, Math.round((palmHoldCount / HOLD_FRAMES) * 100));
-      webcamLabelEl.textContent = pct < 100 ? "palm " + pct + "%" : "palm — hold";
-      webcamLabelEl.style.color = "#e8b870";
-    } else if (gesture === "pinch") {
-      webcamLabelEl.textContent = "pinch";
-      webcamLabelEl.style.color = "#c4d4a0";
-    } else {
-      webcamLabelEl.textContent = label;
-      webcamLabelEl.style.color = "#d9ccb8";
+// ============================================================
+//  AUTO-PLAY
+// ============================================================
+function startAutoPlay() {
+  stopAutoPlay();
+  isPaused  = false;
+  autoTimer = setInterval(function() {
+    if (!isPaused && !waitingForObject && !isFading) {
+      advanceDialogue();
     }
-  }
+  }, DIALOGUE_MS);
+}
 
-  if (handDebug) {
-    handDebug.textContent = gesture !== "none"
-      ? "gesture: " + gesture
-      : "detecting: " + label;
-  }
+function stopAutoPlay() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+}
+
+function pauseDialogue() {
+  if (isPaused) return;
+  isPaused = true;
+  stopAutoPlay();
+  updateFeedback();
+  gestureHint.textContent   = "paused \u2014 show \uD83D\uDC4D to resume";
+  gestureHint.style.display = "inline";
+}
+
+function resumeDialogue() {
+  if (!isPaused) return;
+  isPaused = false;
+  updateFeedback();
+  gestureHint.textContent   = "auto-playing  \u2022  palm to pause";
+  gestureHint.style.display = "inline";
+  startAutoPlay();
 }
 
 // ============================================================
@@ -378,16 +506,15 @@ function updateHandUI(gesture) {
 // ============================================================
 function startGame() {
   fadeTransition(function() {
-    // Hide title, show game
     titleScreen.style.display = "none";
     gameScreen.classList.remove("hidden");
 
-    // Move the p5 canvas into the webcam corner div and resize it
+    // Hide p5 canvas visually (ML5 still classifies)
     var cnvEl = document.querySelector("canvas");
-    webcamCorner.insertBefore(cnvEl, webcamLabelEl);
-    cnvEl.style.width  = "100%";
-    cnvEl.style.height = "auto";
-    cnvEl.style.display = "block";
+    if (cnvEl) cnvEl.style.display = "none";
+
+    if (webcamCorner) webcamCorner.style.display = "none";
+    // feedbackEl intentionally not shown — removed per design
 
     loadScene(STATE.PORCH);
   });
@@ -397,30 +524,39 @@ function loadScene(key) {
   gameState        = key;
   currentScene     = SCENES[key];
   dialogueIndex    = 0;
+  diaryPageIndex   = 0;
+  outroIndex       = 0;
   waitingForObject = false;
   objectDetected   = false;
   objectCooldown   = false;
+  isPaused         = false;
 
   document.getElementById("room-bg").style.backgroundImage =
     "url('" + currentScene.bg + "')";
 
+  nullCount        = 0;
+  isDiaryMode      = false;
   objectPromptEl.classList.add("hidden");
   detectionBadge.classList.add("hidden");
   hideObjectImage();
+
+  // Background audio: stop previous, start scene-specific audio
+  stopAllAudio();
+  if (key === "PORCH") porchAudio.play().catch(function(){});
+
   showDialogueLine(0);
 }
 
 // ============================================================
-//  DIALOGUE SYSTEM
+//  DIALOGUE
 // ============================================================
 function showDialogueLine(index) {
   var lines = currentScene.lines;
-
   if (index >= lines.length || lines[index] === null) {
+    stopAutoPlay();
     showObjectPrompt();
     return;
   }
-
   dialogueIndex = index;
 
   dialogueText.classList.add("fading");
@@ -431,25 +567,42 @@ function showDialogueLine(index) {
 
   var total = lines.filter(function(l) { return l !== null; }).length;
   pageCounter.textContent   = (index + 1) + " / " + total;
+  gestureHint.textContent   = "auto-playing  \u2022  palm to pause";
   gestureHint.style.display = "inline";
+
+  startAutoPlay(); // always restart timer — stopAutoPlay() is called inside
 }
 
 function advanceDialogue() {
+  if (currentScene && currentScene.isOutro) { showOutroLines(); return; }
   var lines = currentScene.lines;
   var next  = dialogueIndex + 1;
-  if (next >= lines.length || lines[next] === null) {
-    showObjectPrompt();
-  } else {
-    showDialogueLine(next);
+
+  if (next >= lines.length) {
+    // Reached true end of lines array — advance scene
+    stopAutoPlay();
+    handleSceneComplete();
+    return;
   }
+
+  if (lines[next] === null) {
+    // Hit a null sentinel — pause for object prompt
+    stopAutoPlay();
+    showObjectPrompt();
+    return;
+  }
+
+  showDialogueLine(next);
 }
 
 // ============================================================
-//  OBJECT PROMPT  — switches into classifier-only mode
+//  OBJECT PROMPT
+//  Pauses auto-play mid-scene for object recognition.
+//  After recognition: resumes remaining lines, then scene ends
+//  when last line finishes.
 // ============================================================
 function showObjectPrompt() {
-  waitingForObject = true;  // gestures now blocked
-
+  stopAutoPlay();
   gestureHint.style.display = "none";
   pageCounter.textContent   = "";
 
@@ -459,73 +612,225 @@ function showObjectPrompt() {
     dialogueText.classList.remove("fading");
   }, 280);
 
+  if (currentScene.isDiary) {
+    waitingForObject = false;
+    isDiaryMode      = true;  // block palm/thumbsup while reading diary
+    pinchActive      = false; // reset so first pinch fires cleanly
+    diaryPageIndex   = 0;
+    gestureHint.textContent   = "pinch to turn page";
+    gestureHint.style.display = "inline";
+    showDiaryPage(0);
+    return;
+  }
+
+  if (currentScene.isOutro) {
+    waitingForObject = false;
+    showOutroLines();
+    return;
+  }
+
+  // Pick correct objectImage for multi-prompt scenes (e.g. HALLWAY)
+  var imgSrc = currentScene.objectImage;
+  if (nullCount === 1 && currentScene.objectImage2) {
+    imgSrc = currentScene.objectImage2;
+  }
+  currentObjectImage = imgSrc; // store so triggerObjectDetected can use it
+
+  nullCount++;
+  waitingForObject = true;
   objectPromptTextEl.textContent =
     currentScene.objectPromptText || "— present the object —";
   objectPromptEl.classList.remove("hidden");
+  updateFeedback();
+}
+
+// ============================================================
+//  DIARY
+// ============================================================
+function showDiaryPage(index) {
+  var pages = currentScene.diaryPages;
+  if (index >= pages.length) {
+    isDiaryMode = false; // diary done — restore normal gesture handling
+    handleSceneComplete();
+    return;
+  }
+  // Play page turn sound on every pinch (index 0 is auto-shown, not a pinch)
+  if (index > 0) playOneShot(pageAudio);
+  diaryPageIndex = index;
+  dialogueText.classList.add("fading");
+  setTimeout(function() {
+    dialogueText.innerHTML =
+      "<em>" + pages[index].replace(/\n/g, "<br>") + "</em>";
+    dialogueText.classList.remove("fading");
+  }, 280);
+  pageCounter.textContent = (index + 1) + " / " + pages.length;
+}
+
+// ============================================================
+//  OUTRO
+// ============================================================
+function showOutroLines() {
+  var lines = currentScene.lines.filter(function(l) { return l !== null; });
+  if (outroIndex >= lines.length) { handleSceneComplete(); return; }
+  gestureHint.textContent   = "auto-playing";
+  gestureHint.style.display = "inline";
+  dialogueText.classList.add("fading");
+  setTimeout(function() {
+    dialogueText.innerHTML = lines[outroIndex].replace(/\n/g, "<br>");
+    dialogueText.classList.remove("fading");
+  }, 280);
+  pageCounter.textContent = "";
+  outroIndex++;
+  if (outroIndex === 1) startAutoPlay();
 }
 
 // ============================================================
 //  OBJECT DETECTED
+//  After recognition: shows image + badge, then RESUMES
+//  remaining dialogue lines in the same scene.
+//  Scene only transitions when the last line finishes.
 // ============================================================
 function triggerObjectDetected() {
   if (objectDetected) return;
   objectDetected = true;
   objectCooldown = true;
-
   objectPromptEl.classList.add("hidden");
 
-  var labelMap = { key: "key recognized", mug: "mug recognized",
-                   phone: "phone recognized", photo: "photo recognized" };
-  detectionTextEl.textContent =
-    labelMap[currentScene.objectTrigger] || "recognized";
-  detectionBadge.classList.remove("hidden");
+  // Show hand image — no text badge
+  if (currentObjectImage) showObjectImage(currentObjectImage);
 
-  if (currentScene.objectImage) showObjectImage(currentScene.objectImage);
+  // Play one-shot audio matching this recognition moment
+  if (gameState === "PORCH") {
+    playOneShot(doorAudio);
+  } else if (gameState === "KITCHEN") {
+    playOneShot(mugAudio);
+  } else if (gameState === "BEDROOM") {
+    playOneShot(photoAudio);
+  } else if (gameState === "HALLWAY" && currentObjectImage === currentScene.objectImage) {
+    // Only on the first recognition (phone_work image, not phone_dad)
+    playOneShot(phoneAudio);
+  }
 
+  // Brief pause to let the image register, then resume dialogue
   setTimeout(function() {
-    detectionBadge.classList.add("hidden");
-    handleSceneComplete();
-  }, 2200);
+    // Find the line after this null sentinel
+    var lines = currentScene.lines;
+    var resumeIndex = dialogueIndex + 1;
+    while (resumeIndex < lines.length && lines[resumeIndex] === null) {
+      resumeIndex++;
+    }
+
+    // Reset recognition flags
+    waitingForObject = false;
+    objectDetected   = false;
+    objectCooldown   = false;
+
+    if (resumeIndex >= lines.length) {
+      handleSceneComplete();
+    } else {
+      showDialogueLine(resumeIndex);
+    }
+  }, 1800);
 }
+
+var _hideImageTimer = null;
 
 function showObjectImage(src) {
   if (!objectImageEl) return;
-  objectImageEl.src = src;
+  // Cancel any in-flight hide timer so it can't overwrite us
+  if (_hideImageTimer) { clearTimeout(_hideImageTimer); _hideImageTimer = null; }
+  // The element starts as display:none (inline style in HTML, no .hidden class)
+  // Remove the class just in case, then make visible
   objectImageEl.classList.remove("hidden");
-  setTimeout(function() { objectImageEl.classList.add("visible"); }, 20);
+  objectImageEl.src = src;
+  objectImageEl.style.display = "block";
+  // Force a reflow so the browser registers display:block before
+  // we add the .visible class — without this the CSS transition won't fire
+  void objectImageEl.offsetWidth;
+  objectImageEl.classList.add("visible");
 }
 
 function hideObjectImage() {
   if (!objectImageEl) return;
   objectImageEl.classList.remove("visible");
-  objectImageEl.classList.add("hidden");
+  // After the CSS fade-out (0.55s), remove from flex flow
+  _hideImageTimer = setTimeout(function() {
+    _hideImageTimer = null;
+    objectImageEl.style.display = "none";
+  }, 600);
 }
 
 // ============================================================
 //  SCENE COMPLETE
 // ============================================================
 function handleSceneComplete() {
-  var nextMap = { PORCH: "HALL_WORK", HALL_WORK: "HALL_DAD", HALL_DAD: "KITCHEN", KITCHEN: null };
+  stopAutoPlay();
+  var nextMap = {
+    PORCH: "HALLWAY_INTRO", HALLWAY_INTRO: "KITCHEN",
+    KITCHEN: "BEDROOM", BEDROOM: "HALLWAY",
+    HALLWAY: "HOBBY", HOBBY: "OUTRO", OUTRO: null
+  };
   var next = nextMap[gameState];
-  if (next) {
-    var nextScene = SCENES[next];
-    // skipFade: same background room, no black transition
-    if (nextScene && nextScene.skipFade) {
-      hideObjectImage();
-      loadScene(next);
-    } else {
-      fadeTransition(function() { loadScene(next); });
-    }
-  } else {
+  if (!next) {
     fadeTransition(function() {
+      stopAllAudio();
+      gameState = STATE.END;
       document.getElementById("room-bg").style.backgroundImage = "";
       dialogueText.innerHTML =
-        "<em style='opacity:0.45;font-style:italic'>[ more rooms coming soon ]</em>";
-      gestureHint.style.display = "none";
+        "<div style='text-align:center;line-height:2'>" +
+        "<em style='opacity:0.5;letter-spacing:0.12em'>\u2014 end \u2014</em>" +
+        "<br>" +
+        "<span style='font-size:1.05em;opacity:0.85;letter-spacing:0.08em'>Thank you for playing</span>" +
+        "</div>";
+      gestureHint.textContent   = "show palm to go back to title";
+      gestureHint.style.display = "inline";
       pageCounter.textContent   = "";
+      if (feedbackEl) feedbackEl.style.display = "none";
       hideObjectImage();
     });
+    return;
   }
+  fadeTransition(function() { loadScene(next); });
+}
+
+// ============================================================
+//  RETURN TO TITLE
+// ============================================================
+function returnToTitle() {
+  fadeTransition(function() {
+    stopAllAudio();
+    stopAutoPlay();
+
+    // Reset all state
+    gameState        = STATE.TITLE;
+    currentScene     = null;
+    isPaused         = false;
+    isFading         = false;
+    waitingForObject = false;
+    objectDetected   = false;
+    objectCooldown   = false;
+    isDiaryMode      = false;
+    dialogueIndex    = 0;
+    diaryPageIndex   = 0;
+    outroIndex       = 0;
+    nullCount        = 0;
+    palmHoldCount    = 0;
+    palmFired        = false;
+
+    // Restore UI
+    gameScreen.classList.add("hidden");
+    titleScreen.style.display = "flex";
+    var cnvEl = document.querySelector("canvas");
+    if (cnvEl) cnvEl.style.display = "block";
+
+    dialogueText.innerHTML    = "";
+    gestureHint.style.display = "none";
+    pageCounter.textContent   = "";
+    document.getElementById("room-bg").style.backgroundImage = "";
+    hideObjectImage();
+    objectPromptEl.classList.add("hidden");
+    detectionBadge.classList.add("hidden");
+  });
 }
 
 // ============================================================
@@ -540,8 +845,7 @@ function fadeTransition(callback) {
     setTimeout(function() {
       fadeOverlay.classList.remove("fading-out");
       setTimeout(function() {
-        isFading       = false;
-        objectCooldown = false;
+        isFading = false; objectCooldown = false;
       }, 800);
     }, 300);
   }, 800);

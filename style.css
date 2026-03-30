@@ -1,19 +1,21 @@
-/* =====================================================
-   THINGS I SHOULD HAVE SAID — style.css
-   Palette: dusty amber, faded cream, deep oak
-===================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Vend+Sans&display=swap");
+
 :root {
-  --cream:       #f0e8d8;
-  --cream-dim:   #d9ccb8;
-  --amber:       #c4934a;
-  --amber-warm:  #e8b870;
-  --oak:         #0d0804;
-  --oak-mid:     #2a1f14;
-  --dust:        #8a7560;
-  --dialogue-bg: rgba(13, 8, 4, 0.85);
-  --fade-ms:     800ms;
-  --font-display:'IM Fell English', Georgia, serif;
-  --font-body:   'Cormorant Garamond', Georgia, serif;
+  --cream:        #f0e8d8;
+  --cream-dim:    #d9ccb8;
+  --amber:        #c4934a;
+  --amber-warm:   #e8b870;
+  --oak:          #0d0804;
+  --oak-mid:      #2a1f14;
+  --dust:         #8a7560;
+  --dialogue-bg:  rgba(13, 8, 4, 0.88);
+  --fade-ms:      800ms;
+
+  /* ── Change fonts here ── */
+  --font-display:   'IM Fell English', Georgia, serif;
+  --font-body:      'Cormorant Garamond', Georgia, serif;
+  /* Dialogue uses Vend Sans — loaded via @import below */
+  --font-dialogue:  "Vend Sans", sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,9 +39,17 @@ html, body {
   opacity: 0;
   transition: opacity var(--fade-ms) ease;
 }
-#fade-overlay.fading-out {
-  opacity: 1;
-  pointer-events: all;
+#fade-overlay.fading-out { opacity: 1; pointer-events: all; }
+
+/* ── p5 CANVAS (title: full screen, game: hidden) ─── */
+main {
+  position: fixed; inset: 0;
+  z-index: 0;
+}
+main canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
 /* ── TITLE SCREEN ─────────────────────────────────── */
@@ -52,20 +62,6 @@ html, body {
   overflow: hidden;
   background: radial-gradient(ellipse 80% 60% at 50% 40%,
     #4a3520 0%, #1e1208 60%, #0d0804 100%);
-}
-
-/* The p5 canvas sits underneath as a ghosted video bg */
-main {
-  position: fixed; inset: 0;
-  z-index: 0;
-}
-main canvas {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
-  display: block;
-  opacity: 0.18;
-  filter: sepia(0.4) brightness(0.5);
 }
 
 .grain-overlay {
@@ -89,7 +85,7 @@ main canvas {
 
 .eyebrow {
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: 0.75rem;           /* ← eyebrow size */
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--amber);
@@ -97,10 +93,11 @@ main canvas {
   margin-bottom: 1.4rem;
 }
 
+/* ── TITLE SIZE: change font-size here ── */
 #game-title {
   font-family: var(--font-display);
   font-style: italic;
-  font-size: clamp(2.6rem, 5.5vw, 4.8rem);
+  font-size: clamp(2.6rem, 5.5vw, 4.8rem); /* ← title size */
   line-height: 1.15;
   color: var(--cream);
   text-shadow: 0 2px 40px rgba(196,147,74,0.2);
@@ -114,34 +111,24 @@ main canvas {
 }
 
 .begin-prompt {
-  font-size: 0.92rem;
+  font-size: 0.92rem;           /* ← prompt size */
   letter-spacing: 0.13em;
   color: var(--cream-dim);
   opacity: 0;
   animation: promptIn 1s ease 1.8s forwards;
-  display: flex; align-items: center; gap: 0.5rem;
 }
 @keyframes promptIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 0.7; transform: translateY(0); }
 }
 
-.palm-icon {
-  display: inline-block;
-  animation: pulse 2.5s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%,100% { opacity:0.5; transform:scale(1); }
-  50%      { opacity:1;   transform:scale(1.12); }
-}
-
 .hand-debug {
-  margin-top: 1rem;
-  font-size: 0.7rem;
+  margin-top: 1.2rem;
+  font-size: 0.7rem;            /* ← title debug text size */
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--amber);
-  opacity: 0.45;
+  opacity: 0.5;
   min-height: 1rem;
 }
 
@@ -150,8 +137,9 @@ main canvas {
   position: fixed; inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-end; /* push dialogue to bottom */
+  padding-bottom: 2.5rem;    /* breathing room from edge */
 }
 
 #room-bg {
@@ -169,7 +157,39 @@ main canvas {
   pointer-events: none;
 }
 
-/* ── WEBCAM CORNER ────────────────────────────────── */
+/* ── FEEDBACK TEXT (top-center, game only) ────────── */
+#feedback-text {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: none;                /* shown by JS on game start */
+  font-family: var(--font-body);
+  font-size: 0.68rem;           /* ← feedback text size */
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  background: rgba(13, 8, 4, 0.72);
+  border: 1px solid rgba(196,147,74,0.15);
+  padding: 0.3rem 1rem;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: color 0.3s ease;
+}
+
+/* Paused state — amber highlight */
+#feedback-text[data-paused] {
+  color: var(--amber-warm);
+  border-color: rgba(196,147,74,0.4);
+  animation: pausePulse 1.8s ease-in-out infinite;
+}
+@keyframes pausePulse {
+  0%,100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+/* ── WEBCAM CORNER (title only, hidden in game) ───── */
 #webcam-corner {
   position: fixed;
   top: 1rem; right: 1rem;
@@ -181,16 +201,12 @@ main canvas {
   background: var(--oak);
   box-shadow: 0 4px 20px rgba(0,0,0,0.55);
 }
-
-/* p5 canvas gets moved here at game start */
 #webcam-corner canvas {
   width: 100% !important;
   height: auto !important;
   display: block !important;
   filter: sepia(0.12) brightness(0.88);
-  transform: none !important;
 }
-
 #webcam-label {
   background: rgba(13,8,4,0.82);
   font-size: 0.62rem;
@@ -202,69 +218,93 @@ main canvas {
   border-top: 1px solid rgba(196,147,74,0.12);
 }
 
-/* ── DIALOGUE BOX ─────────────────────────────────── */
+/* ── DIALOGUE BOX (bottom-center, fixed size) ────── */
 #dialogue-container {
-  position: relative; z-index: 10;
-  width: 100%;
-  padding: 0 clamp(1.5rem, 5vw, 5rem) clamp(1.2rem, 2.5vh, 2rem);
+  position: relative;
+  z-index: 10;
+  width: 660px;              /* fixed width */
+  max-width: calc(100vw - 3rem);
+  padding: 0;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 #dialogue-box {
   background: var(--dialogue-bg);
   border: 1px solid rgba(196,147,74,0.16);
   border-radius: 2px;
-  padding: 1.5rem 1.8rem 1.1rem;
-  max-width: 660px;
+  padding: 1.6rem 2.4rem 1.2rem;
   width: 100%;
+  /* Fixed height — tall enough for longest multi-line entry */
+  height: 260px;              /* ← adjust if text still clips */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 0 1px rgba(196,147,74,0.05), 0 8px 36px rgba(0,0,0,0.65);
+  box-shadow:
+    0 0 0 1px rgba(196,147,74,0.05),
+    0 8px 40px rgba(0,0,0,0.7);
+  text-align: center;
+  position: relative;
 }
+
 #dialogue-box::before {
   content: '';
   position: absolute;
-  top: -1px; left: 1.8rem;
-  width: 36px; height: 2px;
+  top: -1px; left: 50%;
+  transform: translateX(-50%);
+  width: 48px; height: 2px;
   background: var(--amber);
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
+/* ── DIALOGUE TEXT: font and size change here ── */
 #dialogue-text {
-  font-family: var(--font-body);
-  font-size: clamp(0.98rem, 1.5vw, 1.18rem);
-  font-weight: 300;
+  font-family: var(--font-dialogue); /* ← dialogue font (Vend Sans) */
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(0.95rem, 1.8vw, 1.2rem); /* ← dialogue text size */
   line-height: 1.85;
   color: var(--cream);
-  min-height: 2em;
+  /* Flex-grows to fill available space in the fixed-height box */
+  flex: 1;
+  overflow: hidden;          /* clip if truly overflows */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity 0.28s ease;
 }
 #dialogue-text.fading { opacity: 0; }
 
 #dialogue-footer {
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-top: 0.9rem;
-  padding-top: 0.6rem;
+  margin-top: 1rem;
+  padding-top: 0.65rem;
   border-top: 1px solid rgba(196,147,74,0.1);
 }
 
 #gesture-hint {
-  font-size: 0.7rem;
+  font-size: 0.81rem;          /* ← hint text size (0.8rem + 1.2%) */
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--amber);
-  opacity: 0.5;
+  color: var(--amber-warm);
+  opacity: 0.9;
+  text-align: center;
   animation: hintPulse 3s ease-in-out infinite;
 }
 @keyframes hintPulse {
-  0%,100% { opacity: 0.3; }
-  50%      { opacity: 0.65; }
+  0%,100% { opacity: 0.7; }
+  50%      { opacity: 1; }
 }
 
 #page-counter {
-  font-size: 0.66rem;
+  position: absolute;
+  right: 0;
+  font-size: 0.65rem;           /* ← page counter size */
   letter-spacing: 0.12em;
   color: var(--dust);
   opacity: 0.5;
@@ -273,7 +313,7 @@ main canvas {
 /* ── OBJECT PROMPT ────────────────────────────────── */
 #object-prompt {
   position: absolute;
-  top: 42%; left: 50%;
+  top: 38%; left: 50%;
   transform: translate(-50%, -50%);
   z-index: 15;
   text-align: center;
@@ -283,11 +323,10 @@ main canvas {
   0%,100% { transform: translate(-50%, -50%); }
   50%      { transform: translate(-50%, calc(-50% - 7px)); }
 }
-
 #object-prompt-text {
   display: inline-block;
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: 0.8rem;            /* ← object prompt size */
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--amber-warm);
@@ -300,7 +339,7 @@ main canvas {
 /* ── DETECTION BADGE ──────────────────────────────── */
 #detection-badge {
   position: absolute;
-  top: 42%; left: 50%;
+  top: 38%; left: 50%;
   transform: translate(-50%, -50%);
   z-index: 20;
   animation: badgeIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
@@ -309,12 +348,11 @@ main canvas {
   from { opacity:0; transform:translate(-50%,-50%) scale(0.85); }
   to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
 }
-
 #detection-text {
   display: inline-block;
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 1.35rem;
+  font-size: 1.35rem;           /* ← detection badge size */
   color: var(--cream);
   background: rgba(13,8,4,0.9);
   border: 1px solid rgba(196,147,74,0.4);
@@ -322,21 +360,25 @@ main canvas {
   box-shadow: 0 0 28px rgba(196,147,74,0.12), 0 4px 18px rgba(0,0,0,0.55);
 }
 
-/* ── OBJECT REVEAL IMAGE ──────────────────────────── */
+/* ── OBJECT REVEAL IMAGE (above dialogue box) ──────── */
+/* Image floats centered above the dialogue box.
+   It is positioned relative to the game-screen flex column,
+   sitting just above the dialogue container. */
 #object-reveal-img {
-  position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%) translateY(16px);
+  position: relative;        /* participates in flex column flow */
   z-index: 12;
-  max-height: 36vh;
+  max-height: 28vh;          /* ← change this to resize the hand image */
   width: auto;
   object-fit: contain;
+  margin-bottom: 1rem;       /* gap between image and dialogue box */
   opacity: 0;
   pointer-events: none;
+  transform: translateY(12px);
   transition: opacity 0.55s ease, transform 0.55s ease;
-  filter: drop-shadow(0 -6px 20px rgba(0,0,0,0.6));
+  filter: drop-shadow(0 -4px 18px rgba(0,0,0,0.65));
+  align-self: center;
 }
 #object-reveal-img.visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
