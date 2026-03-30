@@ -531,8 +531,8 @@ function loadScene(key) {
   objectCooldown   = false;
   isPaused         = false;
 
-  document.getElementById("room-bg").style.backgroundImage =
-    "url('" + currentScene.bg + "')";
+  document.getElementById("room-bg").style.background =
+    "url('" + currentScene.bg + "') center/cover no-repeat";
 
   nullCount        = 0;
   isDiaryMode      = false;
@@ -775,16 +775,12 @@ function handleSceneComplete() {
     fadeTransition(function() {
       stopAllAudio();
       gameState = STATE.END;
-      document.getElementById("room-bg").style.backgroundImage = "";
-      dialogueText.innerHTML =
-        "<div style='text-align:center;line-height:2'>" +
-        "<em style='opacity:0.5;letter-spacing:0.12em'>\u2014 end \u2014</em>" +
-        "<br>" +
-        "<span style='font-size:1.05em;opacity:0.85;letter-spacing:0.08em'>Thank you for playing</span>" +
-        "</div>";
-      gestureHint.textContent   = "show palm to go back to title";
-      gestureHint.style.display = "inline";
+      document.getElementById("room-bg").style.background = "";
+      document.getElementById("dialogue-container").classList.add("hidden");
+      dialogueText.innerHTML    = "";
+      gestureHint.style.display = "none";
       pageCounter.textContent   = "";
+      document.getElementById("end-screen").classList.remove("hidden");
       if (feedbackEl) feedbackEl.style.display = "none";
       hideObjectImage();
     });
