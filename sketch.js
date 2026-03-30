@@ -184,7 +184,7 @@ const SCENES = {
       "I hadn’t opened this door since Mom died.\nIt used to be her hobby room.\nMy dad never went inside either.",
       "Not what I expected.\nIt was clean.\nMaintained.\nCarefully kept.",
       "And my drawings.\nFramed.\nAll of them.",
-      "In the corner — a desk.\nA notebook.\nWorn. Open.",
+      "Against the wall — a desk.\nA notebook.\nWorn. Open.",
       null
     ],
     diaryPages: [
