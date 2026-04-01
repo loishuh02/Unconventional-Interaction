@@ -1,36 +1,18 @@
-// ============================================================
-//  THINGS I SHOULD HAVE SAID — sketch.js
-//
-//  Interaction model:
-//    TITLE SCREEN
-//      Camera feed visible so user can check framing
-//      Feedback bar shows gesture + object live
-//      Thumbs-up → start game
-//
-//    DIALOGUE (auto-play, 3 s per line)
-//      Palm  → pause immediately
-//      Thumbs-up → start (title) / resume when paused (game)
-//      Feedback text (top-center) shows object / gesture / PAUSED
-//      Camera NOT shown during game
-//
-//    OBJECT PROMPT
-//      Auto-play stops; user presents physical object
-//      Feedback text shows what classifier sees
-//
-//    DIARY (hobby room)
-//      Pinch → turn page
-//
-//    OUTRO
-//      Auto-plays to end → fade to black
-// ============================================================
-
 // ── BACKGROUND AUDIO ─────────────────────────────────────────
-var porchAudio = new Audio("./audio/porch_audio.mp3");
-porchAudio.loop = true;
+var porchAudio  = new Audio("./audio/porch_audio.mp3");
+porchAudio.loop  = true;
+
+var indoorAudio = new Audio("./audio/indoor_audio.mp3");
+indoorAudio.loop = true;                          // hallway, bedroom, hobbyroom
+
+var fridgeAudio = new Audio("./audio/fridge_audio.mp3");
+fridgeAudio.loop = true;                          // kitchen
 
 function stopAllAudio() {
-  porchAudio.pause();
-  porchAudio.currentTime = 0;
+  [porchAudio, indoorAudio, fridgeAudio].forEach(function(a) {
+    a.pause();
+    a.currentTime = 0;
+  });
 }
 
 // ── ONE-SHOT AUDIO ────────────────────────────────────────────
@@ -39,6 +21,8 @@ var mugAudio   = new Audio("./audio/mug_audio.mp3");
 var photoAudio = new Audio("./audio/photo_audio.mp3");
 var phoneAudio = new Audio("./audio/phone_audio.mp3");
 var pageAudio  = new Audio("./audio/page_audio.mp3");
+var walkAudio  = new Audio("./audio/walk_audio.mp3");  // played on every scene transition
+var tapAudio   = new Audio("./audio/tap_audio.mp3");   // played on phone_dad recognition
 
 function playOneShot(audio) {
   audio.currentTime = 0;
@@ -184,7 +168,7 @@ const SCENES = {
       "I hadn’t opened this door since Mom died.\nIt used to be her hobby room.\nMy dad never went inside either.",
       "Not what I expected.\nIt was clean.\nMaintained.\nCarefully kept.",
       "And my drawings.\nFramed.\nAll of them.",
-      "Against the wall — a desk.\nA notebook.\nWorn. Open.",
+      "In the corner — a desk.\nA notebook.\nWorn. Open.",
       null
     ],
     diaryPages: [
@@ -427,12 +411,14 @@ function handleGestureEvent(gesture) {
   if (isFading)         return;
   var now = Date.now();
 
-  // THUMBS UP: start game on title / resume when paused
+  // THUMBS UP: start game on title / resume when paused / return to title on end
   if (gesture === "thumbsup") {
     if (now - lastThumbTime < THUMB_COOLDOWN) return;
     lastThumbTime = now;
     if (gameState === STATE.TITLE) {
       startGame();
+    } else if (gameState === STATE.END) {
+      returnToTitle();
     } else if (isPaused) {
       resumeDialogue();
     }
@@ -542,7 +528,14 @@ function loadScene(key) {
 
   // Background audio: stop previous, start scene-specific audio
   stopAllAudio();
-  if (key === "PORCH") porchAudio.play().catch(function(){});
+  if (key === "PORCH") {
+    porchAudio.play().catch(function(){});
+  } else if (key === "KITCHEN") {
+    fridgeAudio.play().catch(function(){});
+  } else if (key === "HALLWAY_INTRO" || key === "BEDROOM" ||
+             key === "HALLWAY"       || key === "HOBBY"   || key === "OUTRO") {
+    indoorAudio.play().catch(function(){});
+  }
 
   showDialogueLine(0);
 }
@@ -707,8 +700,11 @@ function triggerObjectDetected() {
   } else if (gameState === "BEDROOM") {
     playOneShot(photoAudio);
   } else if (gameState === "HALLWAY" && currentObjectImage === currentScene.objectImage) {
-    // Only on the first recognition (phone_work image, not phone_dad)
+    // First phone recognition (work notifications — hand_phone_work)
     playOneShot(phoneAudio);
+  } else if (gameState === "HALLWAY" && currentObjectImage === currentScene.objectImage2) {
+    // Second phone recognition (dad's voicemail — hand_phone_dad)
+    playOneShot(tapAudio);
   }
 
   // Brief pause to let the image register, then resume dialogue
@@ -786,7 +782,10 @@ function handleSceneComplete() {
     });
     return;
   }
-  fadeTransition(function() { loadScene(next); });
+  fadeTransition(function() {
+    playOneShot(walkAudio);
+    loadScene(next);
+  });
 }
 
 // ============================================================
@@ -826,6 +825,8 @@ function returnToTitle() {
     hideObjectImage();
     objectPromptEl.classList.add("hidden");
     detectionBadge.classList.add("hidden");
+    document.getElementById("end-screen").classList.add("hidden");
+    document.getElementById("dialogue-container").classList.remove("hidden");
   });
 }
 
