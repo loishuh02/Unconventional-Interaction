@@ -150,7 +150,7 @@ const SCENES = {
       "My thumb moved on its own.",
       null,
       "“Hey. It’s me.”\nA pause.\n“I just… wanted to talk to you.”",
-      "The message ended.\n\nEight days ago.\nOne week before he died.",
+      "The message ended.\n\nEight days ago.\nThe night before he died.",
       "Suddenly the silence felt loud."
     ]
   },
@@ -166,7 +166,8 @@ const SCENES = {
       "I hadn’t opened this door since Mom died.\nIt used to be her hobby room.\nMy dad never went inside either.",
       "Not what I expected.\nIt was clean.\nMaintained.\nCarefully kept.",
       "And my drawings.\nFramed.\nAll of them.",
-      "In the corner — a desk.\nA notebook.\nWorn. Open.",
+      "In the corner — a desk.\nA notebook.\nWorn. Closed.",
+      "I opened the notebook.",
       null
     ],
     diaryPages: [
@@ -196,8 +197,7 @@ const SCENES = {
     objectImage:      null,
     isOutro:          true,
     lines: [
-      "Last entry.\nOne week before he died.",
-      "The same day I ignored his call and voicemail.",
+      "Last entry.\nThe same day I ignored his call and voicemail.",
       "I closed the notebook.",
       "I wanted to say something back to him.\nI couldn’t.\nI still can’t.",
       "There were things I should have said.\nBut never did.\nAnd will never get to say.",
