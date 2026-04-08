@@ -3,10 +3,10 @@ var porchAudio  = new Audio("./audio/porch_audio.mp3");
 porchAudio.loop  = true;
 
 var indoorAudio = new Audio("./audio/indoor_audio.mp3");
-indoorAudio.loop = true;                          // hallway, bedroom, hobbyroom
+indoorAudio.loop = true; // hallway, bedroom, hobbyroom
 
 var fridgeAudio = new Audio("./audio/fridge_audio.mp3");
-fridgeAudio.loop = true;                          // kitchen
+fridgeAudio.loop = true; // kitchen
 
 function stopAllAudio() {
   [porchAudio, indoorAudio, fridgeAudio].forEach(function(a) {
@@ -21,8 +21,8 @@ var mugAudio   = new Audio("./audio/mug_audio.mp3");
 var photoAudio = new Audio("./audio/photo_audio.mp3");
 var phoneAudio = new Audio("./audio/phone_audio.mp3");
 var pageAudio  = new Audio("./audio/page_audio.mp3");
-var walkAudio  = new Audio("./audio/walk_audio.mp3");  // played on every scene transition
-var tapAudio   = new Audio("./audio/tap_audio.mp3");   // played on phone_dad recognition
+var walkAudio  = new Audio("./audio/walk_audio.mp3");
+var tapAudio   = new Audio("./audio/tap_audio.mp3");
 
 function playOneShot(audio) {
   audio.currentTime = 0;
@@ -44,16 +44,14 @@ let   palmFired      = false;
 let   palmBlockedUntil = 0;
 
 let   lastPinchTime  = 0;
-const PINCH_COOLDOWN = 1000; // minimum ms between page turns
-let   pinchActive    = false; // true while fingers are held in pinch position
-                              // page turn only fires on the LEADING EDGE of a
-                              // new pinch (requires releasing between turns)
+const PINCH_COOLDOWN = 1000;
+let   pinchActive    = false;
 
 let   lastThumbTime  = 0;
 const THUMB_COOLDOWN = 1200;
 
 // ── AUTO-PLAY ────────────────────────────────────────────────
-const DIALOGUE_MS = 5000; // ← ms each dialogue line stays visible
+const DIALOGUE_MS = 5000;
 let   autoTimer   = null;
 let   isPaused    = false;
 
@@ -74,7 +72,7 @@ let isFading         = false;
 let waitingForObject = false;
 let objectDetected   = false;
 let objectCooldown   = false;
-let isDiaryMode      = false; // true while diary pinch is active — blocks palm/thumbsup
+let isDiaryMode      = false;
 
 // ── SCENE DATA ───────────────────────────────────────────
 const SCENES = {
@@ -172,13 +170,22 @@ const SCENES = {
       null
     ],
     diaryPages: [
-      "(pinch and move to turn pages)",
-      "Thought about calling her today.\nBut ended up not calling.",
-      "I know what it’s like to love art and not be able to survive on it.\nWhen her mother got sick, I couldn’t pay for the treatment.\nI’ve never stopped thinking about that.",
-      "I didn’t want her to struggle the way I did.\nI thought I was protecting her.",
-      "I hope she’s still drawing.",
-      "I’m going to call her this week.\nI mean it this time.",
-      "I just want to say one last thing."
+      "(pinch and move to turn pages)", // index 0 — guideline text
+      null, // index 1 — diary_1.png
+      null, // index 2 — diary_2.png
+      null, // index 3 — diary_3.png
+      null, // index 4 — diary_4.png
+      null, // index 5 — diary_5.png
+      null  // index 6 — diary_6.png
+    ],
+    diaryImages: [
+      null,
+      "./images/diary_1.png",
+      "./images/diary_2.png",
+      "./images/diary_3.png",
+      "./images/diary_4.png",
+      "./images/diary_5.png",
+      "./images/diary_6.png"
     ]
   },
 
@@ -610,6 +617,7 @@ function showObjectPrompt() {
     isDiaryMode      = true;  // block palm/thumbsup while reading diary
     pinchActive      = false; // reset so first pinch fires cleanly
     diaryPageIndex   = 0;
+    hideDiaryImage(); // ensure no leftover image from previous scene
     gestureHint.textContent   = "pinch to turn page";
     gestureHint.style.display = "inline";
     showDiaryPage(0);
@@ -641,22 +649,76 @@ function showObjectPrompt() {
 //  DIARY
 // ============================================================
 function showDiaryPage(index) {
-  var pages = currentScene.diaryPages;
+  var pages  = currentScene.diaryPages;
+  var images = currentScene.diaryImages || [];
+
   if (index >= pages.length) {
-    isDiaryMode = false; // diary done — restore normal gesture handling
+    isDiaryMode = false;
+    hideDiaryImage();
+    document.getElementById("dialogue-container").classList.remove("hidden");
     handleSceneComplete();
     return;
   }
+
   // Play page turn sound on every pinch (index 0 is auto-shown, not a pinch)
   if (index > 0) playOneShot(pageAudio);
   diaryPageIndex = index;
-  dialogueText.classList.add("fading");
-  setTimeout(function() {
-    dialogueText.innerHTML =
-      "<em>" + pages[index].replace(/\n/g, "<br>") + "</em>";
-    dialogueText.classList.remove("fading");
-  }, 280);
-  pageCounter.textContent = (index + 1) + " / " + pages.length;
+
+  var imgSrc = images[index] || null;
+
+  var dlgContainer = document.getElementById("dialogue-container");
+
+  if (imgSrc) {
+    // IMAGE PAGE: hide dialogue box entirely, show diary image
+    dlgContainer.classList.add("hidden");
+    showDiaryImage(imgSrc);
+  } else {
+    // TEXT PAGE (index 0 — guideline): restore dialogue box, hide image
+    hideDiaryImage();
+    dlgContainer.classList.remove("hidden");
+    dialogueText.classList.add("fading");
+    setTimeout(function() {
+      dialogueText.innerHTML =
+        "<em>" + pages[index].replace(/\n/g, "<br>") + "</em>";
+      dialogueText.classList.remove("fading");
+    }, 280);
+    gestureHint.textContent   = "pinch to turn page";
+    gestureHint.style.display = "inline";
+  }
+
+  // Counter shows image pages only (exclude index 0 guideline)
+  if (index === 0) {
+    pageCounter.textContent = "";
+  } else {
+    pageCounter.textContent = index + " / " + (pages.length - 1);
+  }
+}
+
+// ── DIARY IMAGE HELPERS ───────────────────────────────────────────
+// Diary images use the same #object-reveal-img element but at 1.5x scale.
+// We store the original max-height and swap it during diary mode.
+
+function showDiaryImage(src) {
+  if (!objectImageEl) return;
+  if (_hideImageTimer) { clearTimeout(_hideImageTimer); _hideImageTimer = null; }
+  objectImageEl.classList.remove("hidden");
+  objectImageEl.src = src;
+  // 2.5x the normal hand image size (normal max-height is 28vh → 70vh)
+  objectImageEl.style.maxHeight = "70vh";
+  objectImageEl.style.display = "block";
+  void objectImageEl.offsetWidth;
+  objectImageEl.classList.add("visible");
+}
+
+function hideDiaryImage() {
+  if (!objectImageEl) return;
+  objectImageEl.classList.remove("visible");
+  // Restore original max-height for hand object images
+  objectImageEl.style.maxHeight = "28vh";
+  _hideImageTimer = setTimeout(function() {
+    _hideImageTimer = null;
+    objectImageEl.style.display = "none";
+  }, 600);
 }
 
 // ============================================================
