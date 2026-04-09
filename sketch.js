@@ -1,6 +1,6 @@
-// ── BACKGROUND AUDIO ─────────────────────────────────────────
-var porchAudio  = new Audio("./audio/porch_audio.mp3");
-porchAudio.loop  = true;
+// BACKGROUND AUDIO
+var porchAudio = new Audio("./audio/porch_audio.mp3");
+porchAudio.loop = true;
 
 var indoorAudio = new Audio("./audio/indoor_audio.mp3");
 indoorAudio.loop = true; // hallway, bedroom, hobbyroom
@@ -15,66 +15,66 @@ function stopAllAudio() {
   });
 }
 
-// ── ONE-SHOT AUDIO ────────────────────────────────────────────
-var doorAudio  = new Audio("./audio/door_audio.mp3");
-var mugAudio   = new Audio("./audio/mug_audio.mp3");
+// ONE-SHOT AUDIO
+var doorAudio = new Audio("./audio/door_audio.mp3");
+var mugAudio = new Audio("./audio/mug_audio.mp3");
 var photoAudio = new Audio("./audio/photo_audio.mp3");
 var phoneAudio = new Audio("./audio/phone_audio.mp3");
-var pageAudio  = new Audio("./audio/page_audio.mp3");
-var walkAudio  = new Audio("./audio/walk_audio.mp3");
-var tapAudio   = new Audio("./audio/tap_audio.mp3");
+var pageAudio = new Audio("./audio/page_audio.mp3");
+var walkAudio = new Audio("./audio/walk_audio.mp3");
+var tapAudio = new Audio("./audio/tap_audio.mp3");
 
 function playOneShot(audio) {
   audio.currentTime = 0;
   audio.play().catch(function(){});
 }
 
-// ── CLASSIFIER ───────────────────────────────────────────────
+// CLASSIFIER
 let classifier;
 let video;
 let label = "waiting...";
 
-// ── MEDIAPIPE HANDS ──────────────────────────────────────────
+// MEDIAPIPE HANDS
 let mpHands;
 let gestureLabel = "none"; // "palm" | "thumbsup" | "pinch" | "none"
 
-const HOLD_FRAMES    = 18;
-let   palmHoldCount  = 0;
-let   palmFired      = false;
+const HOLD_FRAMES = 18;
+let   palmHoldCount = 0;
+let   palmFired = false;
 let   palmBlockedUntil = 0;
 
-let   lastPinchTime  = 0;
+let   lastPinchTime = 0;
 const PINCH_COOLDOWN = 1000;
-let   pinchActive    = false;
+let   pinchActive = false;
 
-let   lastThumbTime  = 0;
+let   lastThumbTime = 0;
 const THUMB_COOLDOWN = 1200;
 
-// ── AUTO-PLAY ────────────────────────────────────────────────
+// DIALOGUE AUTO PLAY VARIABLES
 const DIALOGUE_MS = 5000;
 let   autoTimer   = null;
 let   isPaused    = false;
 
-// ── GAME STATE ───────────────────────────────────────────────
+// GAME STATE/SCENES
 const STATE = {
-  TITLE:          "TITLE",
-  PORCH:          "PORCH",
-  HALLWAY_INTRO:  "HALLWAY_INTRO",
-  KITCHEN:        "KITCHEN",
-  BEDROOM:        "BEDROOM",
-  HALLWAY:        "HALLWAY",
-  HOBBY:          "HOBBY",
-  OUTRO:          "OUTRO",
-  END:            "END"
+  TITLE: "TITLE",
+  PORCH: "PORCH",
+  HALLWAY_INTRO: "HALLWAY_INTRO",
+  KITCHEN: "KITCHEN",
+  BEDROOM: "BEDROOM",
+  HALLWAY: "HALLWAY",
+  HOBBY: "HOBBY",
+  OUTRO: "OUTRO",
+  END: "END"
 };
-let gameState        = STATE.TITLE;
-let isFading         = false;
+let gameState = STATE.TITLE;
+let isFading = false;
 let waitingForObject = false;
-let objectDetected   = false;
-let objectCooldown   = false;
-let isDiaryMode      = false;
+let objectDetected = false;
+let objectCooldown = false;
+let isDiaryMode = false;
 
-// ── SCENE DATA ───────────────────────────────────────────
+// SCENE DATA
 const SCENES = {
 
   PORCH: {
@@ -206,28 +206,26 @@ const SCENES = {
   }
 }
 
-// ── DIALOGUE / DIARY / OUTRO STATE ───────────────────────────
-let dialogueIndex  = 0;
+// DIALOGUE/DIARY/OUTRO STATE
+let dialogueIndex = 0;
 let diaryPageIndex = 0;
-let outroIndex     = 0;
-let currentScene       = null;
+let outroIndex = 0;
+let currentScene = null;
 let currentObjectImage = null; // which hand image to show on recognition
-let nullCount          = 0;    // tracks null sentinels passed in current scene
+let nullCount = 0; // tracks null sentinels passed in current scene
 
-// ── DOM REFS ─────────────────────────────────────────────────
+// DOM REFS
 let titleScreen, gameScreen, fadeOverlay;
 let dialogueText, gestureHint, pageCounter;
 let objectPromptEl, objectPromptTextEl;
 let detectionBadge, detectionTextEl;
 let objectImageEl, webcamCorner, handDebug, feedbackEl;
 
-// ============================================================
-//  PRELOAD
-// ============================================================
+// PRELOAD FOR IMAGE RECOGNITION MODEL
 function preload() {
   classifier = ml5.imageClassifier(
     "https://teachablemachine.withgoogle.com/models/55FUUPSEh/",
-    { flipped: true }
+    {flipped: true}
   );
 }
 
@@ -239,38 +237,34 @@ function gotResults(results) {
   updateFeedback();
 }
 
-// ============================================================
-//  SETUP
-// ============================================================
+// SETUP
 function setup() {
   let cnv = createCanvas(640, 480);
   cnv.parent(select("main").elt);
 
-  video = createCapture(VIDEO, { flipped: true });
+  video = createCapture(VIDEO, {flipped: true});
   video.hide();
   classifier.classifyStart(video, gotResults);
 
-  titleScreen       = document.getElementById("title-screen");
-  gameScreen        = document.getElementById("game-screen");
-  fadeOverlay       = document.getElementById("fade-overlay");
-  dialogueText      = document.getElementById("dialogue-text");
-  gestureHint       = document.getElementById("gesture-hint");
-  pageCounter       = document.getElementById("page-counter");
-  objectPromptEl    = document.getElementById("object-prompt");
-  objectPromptTextEl= document.getElementById("object-prompt-text");
-  detectionBadge    = document.getElementById("detection-badge");
-  detectionTextEl   = document.getElementById("detection-text");
-  objectImageEl     = document.getElementById("object-reveal-img");
-  webcamCorner      = document.getElementById("webcam-corner");
-  handDebug         = document.getElementById("hand-debug");
-  feedbackEl        = document.getElementById("feedback-text");
+  titleScreen = document.getElementById("title-screen");
+  gameScreen = document.getElementById("game-screen");
+  fadeOverlay = document.getElementById("fade-overlay");
+  dialogueText = document.getElementById("dialogue-text");
+  gestureHint = document.getElementById("gesture-hint");
+  pageCounter = document.getElementById("page-counter");
+  objectPromptEl = document.getElementById("object-prompt");
+  objectPromptTextEl = document.getElementById("object-prompt-text");
+  detectionBadge = document.getElementById("detection-badge");
+  detectionTextEl = document.getElementById("detection-text");
+  objectImageEl = document.getElementById("object-reveal-img");
+  webcamCorner = document.getElementById("webcam-corner");
+  handDebug = document.getElementById("hand-debug");
+  feedbackEl = document.getElementById("feedback-text");
 
   initMediaPipeHands();
 }
 
-// ============================================================
-//  DRAW
-// ============================================================
+// DRAW
 function draw() {
   if (gameState === STATE.TITLE) {
     background(20, 12, 6);
@@ -283,10 +277,8 @@ function draw() {
     rect(width / 2, height - 24, width, 48);
     textSize(15);
     fill(200, 160, 80);
-    textAlign(CENTER, CENTER);
-    text("gesture: " + gestureLabel + "   |   object: " + label, width / 2, height - 24);
   } else {
-    // Camera hidden during game; ML5 still needs a frame to classify
+    // camera hidden during game; ML5 still needs a frame to classify
     background(0);
     image(video, 0, 0, width, height);
     if (waitingForObject && !objectCooldown && !isFading && currentScene) {
@@ -331,25 +323,23 @@ function initMediaPipeHands() {
   mpCam.start();
 }
 
-// ============================================================
-//  HAND RESULTS
-// ============================================================
+// HAND RESULTS
 function onHandResults(results) {
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    gestureLabel  = "none";
+    gestureLabel = "none";
     palmHoldCount = 0;
-    palmFired     = false;
+    palmFired = false;
     updateFeedback();
-    if (handDebug && gameState === STATE.TITLE)
-      handDebug.textContent = "object: " + label;
+    // if (handDebug && gameState === STATE.TITLE)
+    //   handDebug.textContent = "object: " + label;
     return;
   }
 
-  if (waitingForObject) return; // image recognition mode — skip all gestures
+  if (waitingForObject) return; // image recognition mode - skip all gestures
 
-  var lm       = results.multiHandLandmarks[0];
+  var lm = results.multiHandLandmarks[0];
   var detected = classifyGesture(lm);
-  gestureLabel  = detected;
+  gestureLabel = detected;
   updateFeedback();
 
   if (handDebug && gameState === STATE.TITLE) {
@@ -361,9 +351,9 @@ function onHandResults(results) {
   // During diary: only allow pinch (page turn); block everything else
   if (isDiaryMode) {
     if (detected === "pinch") {
-      // Only fire on the LEADING EDGE — when pinch just became active
-      // AND enough time has passed since the last turn.
-      // pinchActive=true means fingers are already held; don't re-fire.
+      // Only fire on the LEADING EDGE - when pinch just became active
+      // and enough time has passed since the last turn.
+      // pinchActive=true: fingers are already held; don't re-fire
       if (!pinchActive) {
         pinchActive = true;
         var nowD = Date.now();
@@ -373,26 +363,23 @@ function onHandResults(results) {
         }
       }
     } else {
-      // Hand left pinch state — reset so next pinch can fire
+      // hand left pinch state - reset so next pinch can fire
       pinchActive = false;
     }
     return; // block palm, thumbsup, everything else
   }
-
   handleGestureEvent(detected);
 }
 
-// ============================================================
-//  GESTURE CLASSIFICATION
-//  palm     — 4 fingers extended
-//  thumbsup — thumb up, fingers curled
-//  pinch    — thumb tip close to index tip
-// ============================================================
+// GESTURE CLASSIFICATION
+// palm: 4 fingers extended
+// thumbsup: thumb up, fingers curled
+// pinch: thumb tip close to index tip
 function classifyGesture(lm) {
-  var indexUp  = lm[8].y  < lm[5].y;
+  var indexUp = lm[8].y  < lm[5].y;
   var middleUp = lm[12].y < lm[9].y;
-  var ringUp   = lm[16].y < lm[13].y;
-  var pinkyUp  = lm[20].y < lm[17].y;
+  var ringUp = lm[16].y < lm[13].y;
+  var pinkyUp = lm[20].y < lm[17].y;
 
   if (indexUp && middleUp && ringUp && pinkyUp) return "palm";
 
@@ -402,30 +389,26 @@ function classifyGesture(lm) {
 
   var dx = lm[4].x - lm[8].x;
   var dy = lm[4].y - lm[8].y;
-  var dist     = Math.sqrt(dx * dx + dy * dy);
+  var dist = Math.sqrt(dx * dx + dy * dy);
   var handSize = Math.abs(lm[0].y - lm[9].y) || 0.1;
   if (dist / handSize < 0.35) return "pinch";
 
   return "none";
 }
 
-// ============================================================
-//  GESTURE EVENTS
-// ============================================================
+// GESTURE EVENTS
 function handleGestureEvent(gesture) {
-  if (waitingForObject) return;  // image recognition mode — no gestures
-  if (isDiaryMode)      return;  // diary pinch mode — no palm or thumbsup
-  if (isFading)         return;
+  if (waitingForObject) return; // image recognition mode: no gestures
+  if (isDiaryMode) return; // diary pinch mode: no palm or thumbsup
+  if (isFading) return;
   var now = Date.now();
 
-  // THUMBS UP: start game on title / resume when paused / return to title on end
+  // THUMBS UP: start game on title / resume
   if (gesture === "thumbsup") {
     if (now - lastThumbTime < THUMB_COOLDOWN) return;
     lastThumbTime = now;
     if (gameState === STATE.TITLE) {
       startGame();
-    } else if (gameState === STATE.END) {
-      returnToTitle();
     } else if (isPaused) {
       resumeDialogue();
     }
@@ -436,7 +419,7 @@ function handleGestureEvent(gesture) {
     palmHoldCount++;
     if (palmHoldCount >= HOLD_FRAMES && !palmFired) {
       if (now < palmBlockedUntil) return;
-      palmFired        = true;
+      palmFired = true;
       palmBlockedUntil = now + 2000;
       if (gameState === STATE.END) {
         returnToTitle();
@@ -459,12 +442,10 @@ function handleGestureEvent(gesture) {
   }
 }
 
-// ============================================================
-//  AUTO-PLAY
-// ============================================================
+// DIALOGUE AUTO-PLAY FUNCTIONS
 function startAutoPlay() {
   stopAutoPlay();
-  isPaused  = false;
+  isPaused = false;
   autoTimer = setInterval(function() {
     if (!isPaused && !waitingForObject && !isFading) {
       advanceDialogue();
@@ -473,7 +454,7 @@ function startAutoPlay() {
 }
 
 function stopAutoPlay() {
-  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  if (autoTimer) {clearInterval(autoTimer); autoTimer = null;}
 }
 
 function pauseDialogue() {
@@ -481,7 +462,7 @@ function pauseDialogue() {
   isPaused = true;
   stopAutoPlay();
   updateFeedback();
-  gestureHint.textContent   = "paused \u2014 show \uD83D\uDC4D to resume";
+  gestureHint.textContent = "paused \u2014 show \uD83D\uDC4D to resume";
   gestureHint.style.display = "inline";
 }
 
@@ -489,67 +470,61 @@ function resumeDialogue() {
   if (!isPaused) return;
   isPaused = false;
   updateFeedback();
-  gestureHint.textContent   = "auto-playing  \u2022  palm to pause";
+  gestureHint.textContent = "auto-playing  \u2022  palm to pause";
   gestureHint.style.display = "inline";
   startAutoPlay();
 }
 
-// ============================================================
-//  GAME FLOW
-// ============================================================
+// INGAME FUNCTIONS
 function startGame() {
   fadeTransition(function() {
     titleScreen.style.display = "none";
     gameScreen.classList.remove("hidden");
 
-    // Hide p5 canvas visually (ML5 still classifies)
+    // hide p5 canvas visually (ML5 still classifies)
     var cnvEl = document.querySelector("canvas");
     if (cnvEl) cnvEl.style.display = "none";
 
     if (webcamCorner) webcamCorner.style.display = "none";
-    // feedbackEl intentionally not shown — removed per design
+    // feedbackEl intentionally not shown - removed per design
 
     loadScene(STATE.PORCH);
   });
 }
 
 function loadScene(key) {
-  gameState        = key;
-  currentScene     = SCENES[key];
-  dialogueIndex    = 0;
-  diaryPageIndex   = 0;
-  outroIndex       = 0;
+  gameState = key;
+  currentScene = SCENES[key];
+  dialogueIndex = 0;
+  diaryPageIndex = 0;
+  outroIndex = 0;
   waitingForObject = false;
-  objectDetected   = false;
-  objectCooldown   = false;
-  isPaused         = false;
+  objectDetected = false;
+  objectCooldown = false;
+  isPaused = false;
 
-  document.getElementById("room-bg").style.background =
-    "url('" + currentScene.bg + "') center/cover no-repeat";
+  document.getElementById("room-bg").style.background = "url('" + currentScene.bg + "') center/cover no-repeat";
 
-  nullCount        = 0;
-  isDiaryMode      = false;
+  nullCount = 0;
+  isDiaryMode = false;
   objectPromptEl.classList.add("hidden");
   detectionBadge.classList.add("hidden");
   hideObjectImage();
 
-  // Background audio: stop previous, start scene-specific audio
+  // background audio: stop previous, start scene-specific audio
   stopAllAudio();
   if (key === "PORCH") {
     porchAudio.play().catch(function(){});
   } else if (key === "KITCHEN") {
     fridgeAudio.play().catch(function(){});
-  } else if (key === "HALLWAY_INTRO" || key === "BEDROOM" ||
-             key === "HALLWAY"       || key === "HOBBY"   || key === "OUTRO") {
+  } else if ( key === "HALLWAY_INTRO" || key === "BEDROOM" || key === "HALLWAY" || key === "HOBBY" || key === "OUTRO") {
     indoorAudio.play().catch(function(){});
   }
 
   showDialogueLine(0);
 }
 
-// ============================================================
-//  DIALOGUE
-// ============================================================
+// DIALOGUE
 function showDialogueLine(index) {
   var lines = currentScene.lines;
   if (index >= lines.length || lines[index] === null) {
@@ -570,23 +545,23 @@ function showDialogueLine(index) {
   gestureHint.textContent   = "auto-playing  \u2022  palm to pause";
   gestureHint.style.display = "inline";
 
-  startAutoPlay(); // always restart timer — stopAutoPlay() is called inside
+  startAutoPlay(); // always restart timer - stopAutoPlay() is called inside
 }
 
 function advanceDialogue() {
   if (currentScene && currentScene.isOutro) { showOutroLines(); return; }
   var lines = currentScene.lines;
-  var next  = dialogueIndex + 1;
+  var next = dialogueIndex + 1;
 
   if (next >= lines.length) {
-    // Reached true end of lines array — advance scene
+    // Reached true end of lines array: advance scene
     stopAutoPlay();
     handleSceneComplete();
     return;
   }
 
   if (lines[next] === null) {
-    // Hit a null sentinel — pause for object prompt
+    // Hit a null sentinel: pause for object prompt
     stopAutoPlay();
     showObjectPrompt();
     return;
@@ -595,16 +570,13 @@ function advanceDialogue() {
   showDialogueLine(next);
 }
 
-// ============================================================
 //  OBJECT PROMPT
 //  Pauses auto-play mid-scene for object recognition.
-//  After recognition: resumes remaining lines, then scene ends
-//  when last line finishes.
-// ============================================================
+//  After recognition: resumes remaining lines, then scene ends when last line finishes.
 function showObjectPrompt() {
   stopAutoPlay();
   gestureHint.style.display = "none";
-  pageCounter.textContent   = "";
+  pageCounter.textContent = "";
 
   dialogueText.classList.add("fading");
   setTimeout(function() {
@@ -614,11 +586,11 @@ function showObjectPrompt() {
 
   if (currentScene.isDiary) {
     waitingForObject = false;
-    isDiaryMode      = true;  // block palm/thumbsup while reading diary
-    pinchActive      = false; // reset so first pinch fires cleanly
-    diaryPageIndex   = 0;
+    isDiaryMode = true; // block palm/thumbsup while reading diary
+    pinchActive = false; // reset so first pinch fires cleanly
+    diaryPageIndex = 0;
     hideDiaryImage(); // ensure no leftover image from previous scene
-    gestureHint.textContent   = "pinch to turn page";
+    gestureHint.textContent = "pinch to turn page";
     gestureHint.style.display = "inline";
     showDiaryPage(0);
     return;
@@ -630,7 +602,7 @@ function showObjectPrompt() {
     return;
   }
 
-  // Pick correct objectImage for multi-prompt scenes (e.g. HALLWAY)
+  // Pick correct objectImage for multi-prompt scene (HALLWAY)
   var imgSrc = currentScene.objectImage;
   if (nullCount === 1 && currentScene.objectImage2) {
     imgSrc = currentScene.objectImage2;
@@ -639,17 +611,14 @@ function showObjectPrompt() {
 
   nullCount++;
   waitingForObject = true;
-  objectPromptTextEl.textContent =
-    currentScene.objectPromptText || "— present the object —";
+  objectPromptTextEl.textContent = currentScene.objectPromptText || "— present the object —";
   objectPromptEl.classList.remove("hidden");
   updateFeedback();
 }
 
-// ============================================================
-//  DIARY
-// ============================================================
+// DIARY
 function showDiaryPage(index) {
-  var pages  = currentScene.diaryPages;
+  var pages = currentScene.diaryPages;
   var images = currentScene.diaryImages || [];
 
   if (index >= pages.length) {
@@ -673,16 +642,15 @@ function showDiaryPage(index) {
     dlgContainer.classList.add("hidden");
     showDiaryImage(imgSrc);
   } else {
-    // TEXT PAGE (index 0 — guideline): restore dialogue box, hide image
+    // TEXT PAGE (index 0 - guideline): restore dialogue box, hide image
     hideDiaryImage();
     dlgContainer.classList.remove("hidden");
     dialogueText.classList.add("fading");
     setTimeout(function() {
-      dialogueText.innerHTML =
-        "<em>" + pages[index].replace(/\n/g, "<br>") + "</em>";
+      dialogueText.innerHTML = "<em>" + pages[index].replace(/\n/g, "<br>") + "</em>";
       dialogueText.classList.remove("fading");
     }, 280);
-    gestureHint.textContent   = "pinch to turn page";
+    gestureHint.textContent = "pinch to turn page";
     gestureHint.style.display = "inline";
   }
 
@@ -694,16 +662,13 @@ function showDiaryPage(index) {
   }
 }
 
-// ── DIARY IMAGE HELPERS ───────────────────────────────────────────
-// Diary images use the same #object-reveal-img element but at 1.5x scale.
-// We store the original max-height and swap it during diary mode.
-
+// DIARY IMAGE HELPERS
+// store the original max-height of diary image and swap it during diary mode
 function showDiaryImage(src) {
   if (!objectImageEl) return;
-  if (_hideImageTimer) { clearTimeout(_hideImageTimer); _hideImageTimer = null; }
+  if (_hideImageTimer) {clearTimeout(_hideImageTimer); _hideImageTimer = null;}
   objectImageEl.classList.remove("hidden");
   objectImageEl.src = src;
-  // 2.5x the normal hand image size (normal max-height is 28vh → 70vh)
   objectImageEl.style.maxHeight = "70vh";
   objectImageEl.style.display = "block";
   void objectImageEl.offsetWidth;
@@ -713,7 +678,7 @@ function showDiaryImage(src) {
 function hideDiaryImage() {
   if (!objectImageEl) return;
   objectImageEl.classList.remove("visible");
-  // Restore original max-height for hand object images
+  // restore original max-height for hand object images
   objectImageEl.style.maxHeight = "28vh";
   _hideImageTimer = setTimeout(function() {
     _hideImageTimer = null;
@@ -721,13 +686,11 @@ function hideDiaryImage() {
   }, 600);
 }
 
-// ============================================================
-//  OUTRO
-// ============================================================
+// OUTRO
 function showOutroLines() {
-  var lines = currentScene.lines.filter(function(l) { return l !== null; });
-  if (outroIndex >= lines.length) { handleSceneComplete(); return; }
-  gestureHint.textContent   = "auto-playing";
+  var lines = currentScene.lines.filter(function(l) {return l !== null;});
+  if (outroIndex >= lines.length) {handleSceneComplete(); return;}
+  gestureHint.textContent = "auto-playing";
   gestureHint.style.display = "inline";
   dialogueText.classList.add("fading");
   setTimeout(function() {
@@ -739,22 +702,19 @@ function showOutroLines() {
   if (outroIndex === 1) startAutoPlay();
 }
 
-// ============================================================
-//  OBJECT DETECTED
-//  After recognition: shows image + badge, then RESUMES
-//  remaining dialogue lines in the same scene.
-//  Scene only transitions when the last line finishes.
-// ============================================================
+// OBJECT DETECTED
+// After recognition: shows image + badge, then resumes remaining dialogue lines in the same scene
+// Scene only transitions when the last line finishes
 function triggerObjectDetected() {
   if (objectDetected) return;
   objectDetected = true;
   objectCooldown = true;
   objectPromptEl.classList.add("hidden");
 
-  // Show hand image — no text badge
+  // Show hand image
   if (currentObjectImage) showObjectImage(currentObjectImage);
 
-  // Play one-shot audio matching this recognition moment
+  // play one-shot audio matching specific recognition moment
   if (gameState === "PORCH") {
     playOneShot(doorAudio);
   } else if (gameState === "KITCHEN") {
@@ -762,10 +722,8 @@ function triggerObjectDetected() {
   } else if (gameState === "BEDROOM") {
     playOneShot(photoAudio);
   } else if (gameState === "HALLWAY" && currentObjectImage === currentScene.objectImage) {
-    // First phone recognition (work notifications — hand_phone_work)
     playOneShot(phoneAudio);
   } else if (gameState === "HALLWAY" && currentObjectImage === currentScene.objectImage2) {
-    // Second phone recognition (dad's voicemail — hand_phone_dad)
     playOneShot(tapAudio);
   }
 
@@ -780,8 +738,8 @@ function triggerObjectDetected() {
 
     // Reset recognition flags
     waitingForObject = false;
-    objectDetected   = false;
-    objectCooldown   = false;
+    objectDetected = false;
+    objectCooldown = false;
 
     if (resumeIndex >= lines.length) {
       handleSceneComplete();
@@ -796,7 +754,7 @@ var _hideImageTimer = null;
 function showObjectImage(src) {
   if (!objectImageEl) return;
   // Cancel any in-flight hide timer so it can't overwrite us
-  if (_hideImageTimer) { clearTimeout(_hideImageTimer); _hideImageTimer = null; }
+  if (_hideImageTimer) {clearTimeout(_hideImageTimer); _hideImageTimer = null;}
   // The element starts as display:none (inline style in HTML, no .hidden class)
   // Remove the class just in case, then make visible
   objectImageEl.classList.remove("hidden");
@@ -818,9 +776,7 @@ function hideObjectImage() {
   }, 600);
 }
 
-// ============================================================
-//  SCENE COMPLETE
-// ============================================================
+// SCENE COMPLETE
 function handleSceneComplete() {
   stopAutoPlay();
   var nextMap = {
@@ -835,9 +791,9 @@ function handleSceneComplete() {
       gameState = STATE.END;
       document.getElementById("room-bg").style.background = "";
       document.getElementById("dialogue-container").classList.add("hidden");
-      dialogueText.innerHTML    = "";
+      dialogueText.innerHTML = "";
       gestureHint.style.display = "none";
-      pageCounter.textContent   = "";
+      pageCounter.textContent = "";
       document.getElementById("end-screen").classList.remove("hidden");
       if (feedbackEl) feedbackEl.style.display = "none";
       hideObjectImage();
@@ -850,39 +806,37 @@ function handleSceneComplete() {
   });
 }
 
-// ============================================================
-//  RETURN TO TITLE
-// ============================================================
+//END SCENE - RETURN TO TITLE
 function returnToTitle() {
   fadeTransition(function() {
     stopAllAudio();
     stopAutoPlay();
 
-    // Reset all state
-    gameState        = STATE.TITLE;
-    currentScene     = null;
-    isPaused         = false;
-    isFading         = false;
+    // reset all state
+    gameState = STATE.TITLE;
+    currentScene = null;
+    isPaused = false;
+    isFading = false;
     waitingForObject = false;
-    objectDetected   = false;
-    objectCooldown   = false;
-    isDiaryMode      = false;
-    dialogueIndex    = 0;
-    diaryPageIndex   = 0;
-    outroIndex       = 0;
-    nullCount        = 0;
-    palmHoldCount    = 0;
-    palmFired        = false;
+    objectDetected = false;
+    objectCooldown = false;
+    isDiaryMode = false;
+    dialogueIndex = 0;
+    diaryPageIndex = 0;
+    outroIndex = 0;
+    nullCount = 0;
+    palmHoldCount = 0;
+    palmFired = false;
 
-    // Restore UI
+    // restore UI
     gameScreen.classList.add("hidden");
     titleScreen.style.display = "flex";
     var cnvEl = document.querySelector("canvas");
     if (cnvEl) cnvEl.style.display = "block";
 
-    dialogueText.innerHTML    = "";
+    dialogueText.innerHTML = "";
     gestureHint.style.display = "none";
-    pageCounter.textContent   = "";
+    pageCounter.textContent = "";
     document.getElementById("room-bg").style.backgroundImage = "";
     hideObjectImage();
     objectPromptEl.classList.add("hidden");
@@ -892,9 +846,7 @@ function returnToTitle() {
   });
 }
 
-// ============================================================
-//  FADE TRANSITION
-// ============================================================
+// FADE TRANSITION
 function fadeTransition(callback) {
   if (isFading) return;
   isFading = true;
