@@ -39,25 +39,27 @@ let mpHands;
 let gestureLabel = "none"; // "palm" | "thumbsup" | "pinch" | "none"
 
 const HOLD_FRAMES = 18;
-let   palmHoldCount = 0;
-let   palmFired = false;
-let   palmBlockedUntil = 0;
+let palmHoldCount = 0;
+let palmFired = false;
+let palmBlockedUntil = 0;
 
-let   lastPinchTime = 0;
+let lastPinchTime = 0;
 const PINCH_COOLDOWN = 1000;
-let   pinchActive = false;
+let pinchActive = false;
 
-let   lastThumbTime = 0;
+let lastThumbTime    = 0;
 const THUMB_COOLDOWN = 1200;
+let thumbsUpReleased = true;
 
 // DIALOGUE AUTO PLAY VARIABLES
 const DIALOGUE_MS = 5000;
-let   autoTimer   = null;
-let   isPaused    = false;
+let autoTimer = null;
+let isPaused = false;
 
 // GAME STATE/SCENES
 const STATE = {
   TITLE: "TITLE",
+  ONBOARD: "ONBOARD",
   PORCH: "PORCH",
   HALLWAY_INTRO: "HALLWAY_INTRO",
   KITCHEN: "KITCHEN",
@@ -84,7 +86,7 @@ const SCENES = {
     objectImage:      "./images/hand_key.png",
     lines: [
       "The house looked smaller than I remembered.",
-      "They called on Tuesday.\n“Come quickly. The property needs to be sold.”\n\nLike ten years could be packed into boxes.",
+      "They called on Tuesday.\n<em>“Come quickly. The property needs to be sold.”</em>\nLike ten years could be packed into boxes.",
       "I was nine when Mom died.\nAfter that, it was just the two of us.\nWe never learned how to be that. We stopped talking to each other.",
       "The night I told him I’d applied for art school,\nhe said I was throwing my life away.\n\nI told him he had no right to judge.",
       "I left that night.\nThat was ten years ago.",
@@ -149,7 +151,7 @@ const SCENES = {
       "I’d told myself I’d listen when I was ready.\n\nI was never ready.",
       "My thumb moved on its own.",
       null,
-      "“Hey. It’s me.”\nA pause.\n“I just… wanted to talk to you.”",
+      "<em>“Hey. It’s me.”</em>\nA pause.\n\n<em>“I just… wanted to talk to you.”</em>",
       "The message ended.\n\nEight days ago.\nThe night before he died.",
       "Suddenly the silence felt loud."
     ]
@@ -200,8 +202,7 @@ const SCENES = {
       "Last entry.\nThe same day I ignored his call and voicemail.",
       "I closed the notebook.",
       "I wanted to say something back to him.\nI couldn’t.\nI still can’t.",
-      "There were things I should have said.\nBut never did.\nAnd will never get to say.",
-      null
+      "There were things I should have said.\nBut never did.\nAnd will never get to say."
     ]
   }
 }
@@ -229,12 +230,9 @@ function preload() {
   );
 }
 
-// ============================================================
-//  gotResults
-// ============================================================
+// LABEL UPDATE CALLBACK
 function gotResults(results) {
   label = results[0].label;
-  updateFeedback();
 }
 
 // SETUP
@@ -289,14 +287,7 @@ function draw() {
   }
 }
 
-// ============================================================
-//  FEEDBACK TEXT — removed; function kept as no-op so existing
-//  calls throughout the code don’t throw errors.
-// ============================================================
-function updateFeedback() {}
-// ============================================================
 //  MEDIAPIPE HANDS
-// ============================================================
 function initMediaPipeHands() {
   var mpVideo = document.createElement("video");
   mpVideo.setAttribute("playsinline", "");
@@ -326,11 +317,11 @@ function initMediaPipeHands() {
 // HAND RESULTS
 function onHandResults(results) {
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    gestureLabel = "none";
-    palmHoldCount = 0;
-    palmFired = false;
-    updateFeedback();
-    // if (handDebug && gameState === STATE.TITLE)
+    gestureLabel     = "none";
+    palmHoldCount    = 0;
+    palmFired        = false;
+    thumbsUpReleased = true; // hand gone from frame — counts as released
+    // if (handDebug && gameState === STATE.TITLE || gameState === STATE.ONBOARD)
     //   handDebug.textContent = "object: " + label;
     return;
   }
@@ -340,13 +331,12 @@ function onHandResults(results) {
   var lm = results.multiHandLandmarks[0];
   var detected = classifyGesture(lm);
   gestureLabel = detected;
-  updateFeedback();
 
-  if (handDebug && gameState === STATE.TITLE) {
-    handDebug.textContent = detected !== "none"
-      ? "gesture: " + detected + "   |   object: " + label
-      : "object: " + label;
-  }
+  // if (handDebug && gameState === STATE.TITLE) {
+  //   handDebug.textContent = detected !== "none"
+  //     ? "gesture: " + detected + "   |   object: " + label
+  //     : "object: " + label;
+  // }
 
   // During diary: only allow pinch (page turn); block everything else
   if (isDiaryMode) {
@@ -391,7 +381,7 @@ function classifyGesture(lm) {
   var dy = lm[4].y - lm[8].y;
   var dist = Math.sqrt(dx * dx + dy * dy);
   var handSize = Math.abs(lm[0].y - lm[9].y) || 0.1;
-  if (dist / handSize < 0.35) return "pinch";
+  if (dist / handSize < 0.15) return "pinch";
 
   return "none";
 }
@@ -403,15 +393,26 @@ function handleGestureEvent(gesture) {
   if (isFading) return;
   var now = Date.now();
 
-  // THUMBS UP: start game on title / resume
+  // THUMBS UP: title→onboard, onboard→game, resume when paused
   if (gesture === "thumbsup") {
+    // FRESH-GESTURE GUARD: hand must fully leave thumbsup between screens.
+    // Prevents a continuously held thumb from skipping through all screens.
+    if (!thumbsUpReleased) return;
     if (now - lastThumbTime < THUMB_COOLDOWN) return;
-    lastThumbTime = now;
+    lastThumbTime    = now;
+    thumbsUpReleased = false; // block until hand leaves thumbsup position
     if (gameState === STATE.TITLE) {
+      showOnboard();
+    } else if (gameState === STATE.ONBOARD) {
       startGame();
     } else if (isPaused) {
       resumeDialogue();
     }
+  }
+
+  // Reset: any non-thumbsup gesture re-enables the next thumbsup fire
+  if (gesture !== "thumbsup") {
+    thumbsUpReleased = true;
   }
 
   // PALM: return to title on end screen / pause dialogue during game
@@ -461,7 +462,6 @@ function pauseDialogue() {
   if (isPaused) return;
   isPaused = true;
   stopAutoPlay();
-  updateFeedback();
   gestureHint.textContent = "paused \u2014 show \uD83D\uDC4D to resume";
   gestureHint.style.display = "inline";
 }
@@ -469,16 +469,25 @@ function pauseDialogue() {
 function resumeDialogue() {
   if (!isPaused) return;
   isPaused = false;
-  updateFeedback();
   gestureHint.textContent = "auto-playing  \u2022  palm to pause";
   gestureHint.style.display = "inline";
   startAutoPlay();
 }
 
 // INGAME FUNCTIONS
+function showOnboard() {
+  fadeTransition(function() {
+    gameState = STATE.ONBOARD;
+    titleScreen.style.display = "none";
+    document.getElementById("onboard-screen").classList.remove("hidden");
+    thumbsUpReleased = false; // force user to release and re-show thumbsup
+  });
+}
+
 function startGame() {
   fadeTransition(function() {
     titleScreen.style.display = "none";
+    document.getElementById("onboard-screen").classList.add("hidden");
     gameScreen.classList.remove("hidden");
 
     // hide p5 canvas visually (ML5 still classifies)
@@ -613,7 +622,6 @@ function showObjectPrompt() {
   waitingForObject = true;
   objectPromptTextEl.textContent = currentScene.objectPromptText || "— present the object —";
   objectPromptEl.classList.remove("hidden");
-  updateFeedback();
 }
 
 // DIARY
@@ -689,7 +697,14 @@ function hideDiaryImage() {
 // OUTRO
 function showOutroLines() {
   var lines = currentScene.lines.filter(function(l) {return l !== null;});
-  if (outroIndex >= lines.length) {handleSceneComplete(); return;}
+  if (outroIndex >= lines.length) {
+    isFading = false;
+    handleSceneComplete();
+    return;
+  }
+
+  var isLastLine = (outroIndex === lines.length - 1);
+
   gestureHint.textContent = "auto-playing";
   gestureHint.style.display = "inline";
   dialogueText.classList.add("fading");
@@ -700,6 +715,14 @@ function showOutroLines() {
   pageCounter.textContent = "";
   outroIndex++;
   if (outroIndex === 1) startAutoPlay();
+
+  if (isLastLine) {
+    stopAutoPlay();
+    setTimeout(function() {
+      isFading = false;
+      handleSceneComplete();
+    }, DIALOGUE_MS);
+  }
 }
 
 // OBJECT DETECTED
@@ -842,6 +865,7 @@ function returnToTitle() {
     objectPromptEl.classList.add("hidden");
     detectionBadge.classList.add("hidden");
     document.getElementById("end-screen").classList.add("hidden");
+    document.getElementById("onboard-screen").classList.add("hidden");
     document.getElementById("dialogue-container").classList.remove("hidden");
   });
 }

@@ -267,12 +267,18 @@ main canvas {
   font-size: clamp(0.95rem, 1.8vw, 1.2rem); /* ← dialogue text size */
   line-height: 1.85;
   color: var(--cream);
-  /* Flex-grows to fill available space in the fixed-height box */
+  /* flex:1 keeps the text area filling the box height */
   flex: 1;
-  overflow: hidden;          /* clip if truly overflows */
+  overflow: hidden;
+  /* display:block so <em> and <br> render inline correctly.
+     Centering is handled by text-align:center on #dialogue-box. */
+  display: block;
+  /* Vertically center single/short lines within the fixed height */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
   transition: opacity 0.28s ease;
 }
 #dialogue-text.fading { opacity: 0; }
@@ -382,48 +388,98 @@ main canvas {
   opacity: 1;
   transform: translateY(0);
 }
-/* ── END SCREEN ───────────────────────────────────── */
-#end-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
+/* ── ONBOARD SCREEN ───────────────────────────────── */
+#onboard-screen {
+  position: fixed; inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  overflow: hidden;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%,
+    #4a3520 0%, #1e1208 60%, #0d0804 100%);
+}
+
+#onboard-content {
+  position: relative; z-index: 2;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0;
+  animation: titleIn 1s ease forwards;
+}
+
+#onboard-objects {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+  line-height: 1.4;
+  color: var(--cream);
+  margin-bottom: 1.6rem;
+}
+
+#onboard-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+#onboard-list li {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  letter-spacing: 0.1em;
+  color: var(--cream-dim);
+  opacity: 0.85;
+}
+
+.onboard-prompt {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  color: var(--cream-dim);
+  opacity: 0;
+  animation: promptIn 1s ease 0.8s forwards;
+  margin-top: 0.2rem;
+}
+/* ── END SCREEN ───────────────────────────────────── */
+#end-screen {
+  position: fixed; inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%,
+    #4a3520 0%, #1e1208 60%, #0d0804 100%);
+  overflow: hidden;
+}
+
+#end-content {
+  position: relative; z-index: 2;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 1.6rem;
-  pointer-events: none;
-  animation: endFadeIn 1.5s ease forwards;
+  animation: titleIn 1.5s ease forwards;
 }
 
-@keyframes endFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Same font and size as #game-title */
 #end-title {
   font-family: var(--font-display);
   font-style: italic;
   font-size: clamp(2.6rem, 5.5vw, 4.8rem);
   line-height: 1.15;
   color: var(--cream);
-  text-align: center;
   text-shadow: 0 2px 40px rgba(196,147,74,0.2);
 }
 
-/* Half the size of #end-title */
 #end-prompt {
   font-family: var(--font-body);
-  font-size: clamp(1.3rem, 2.75vw, 2.4rem); /* ~half of end-title */
-  letter-spacing: 0.08em;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  letter-spacing: 0.1em;
   color: var(--cream-dim);
-  opacity: 0.65;
-  text-align: center;
-  animation: endPromptIn 1s ease 1.2s both;
-}
-
-@keyframes endPromptIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 0.65; transform: translateY(0); }
+  opacity: 0;
+  animation: promptIn 1s ease 1.2s forwards;
 }

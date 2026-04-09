@@ -36,6 +36,23 @@
       </div>
     </div>
 
+    <!-- ONBOARD SCREEN -->
+    <div id="onboard-screen" class="hidden">
+      <div class="grain-overlay"></div>
+      <div id="onboard-content">
+        <p class="eyebrow">before you begin</p>
+        <p id="onboard-objects">Be prepared to provide<br>the following objects:</p>
+        <ul id="onboard-list">
+          <li>- a key: provided</li>
+          <li>- a mug: provided</li>
+          <li>- a photo: provided</li>
+          <li>- a phone: please use your personal phone as it is not provided</li>
+        </ul>
+        <div class="title-rule"></div>
+        <p class="onboard-prompt">show thumbs up to begin</p>
+      </div>
+    </div>
+
     <!-- GAME SCREEN (hidden until game starts) -->
     <div id="game-screen" class="hidden">
 
@@ -72,10 +89,13 @@
         <span id="detection-text"></span>
       </div>
 
-      <!-- End screen — shown after OUTRO, replaces all UI -->
+      <!-- END SCREEN -->
       <div id="end-screen" class="hidden">
-        <h2 id="end-title">Thank you for playing.</h2>
-        <p id="end-prompt">show palm to return to title</p>
+        <div class="grain-overlay"></div>
+        <div id="end-content">
+          <h2 id="end-title">Thank you for playing.</h2>
+          <p id="end-prompt">show palm to return to title</p>
+        </div>
       </div>
 
     </div>
